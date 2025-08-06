@@ -6,27 +6,27 @@
 ## 詳細タスク
 
 ### 1. ディレクトリ構成の作成
-- [ ] cpp/ ディレクトリの作成
-- [ ] cpp/core/ ディレクトリの作成
-- [ ] cpp/ai/ ディレクトリの作成  
-- [ ] cpp/bindings/ ディレクトリの作成
-- [ ] python/ ディレクトリの作成
-- [ ] python/ui/ ディレクトリの作成
-- [ ] python/core/ ディレクトリの作成
-- [ ] python/utils/ ディレクトリの作成
-- [ ] python/bindings/ ディレクトリの作成
-- [ ] config/ ディレクトリの作成
+- [x] cpp/ ディレクトリの作成
+- [x] cpp/core/ ディレクトリの作成
+- [x] cpp/ai/ ディレクトリの作成  
+- [x] cpp/bindings/ ディレクトリの作成
+- [x] python/ ディレクトリの作成
+- [x] python/ui/ ディレクトリの作成
+- [x] python/core/ ディレクトリの作成
+- [x] python/utils/ ディレクトリの作成
+- [x] python/bindings/ ディレクトリの作成
+- [x] config/ ディレクトリの作成
 
 ### 2. ビルドシステム構築
-- [ ] CMakeLists.txt の作成（C++部分）
-- [ ] setup.py の作成（Python部分）
-- [ ] requirements.txt の作成
-- [ ] .gitignore の作成
+- [x] CMakeLists.txt の作成（C++部分）
+- [x] setup.py の作成（Python部分）
+- [x] requirements.txt の作成
+- [x] .gitignore の作成
 
 ### 3. 基本環境設定
-- [ ] pybind11 の環境構築
-- [ ] C++コンパイラの動作確認
-- [ ] Python環境の動作確認
+- [x] pybind11 の環境構築
+- [x] C++コンパイラの動作確認
+- [x] Python環境の動作確認
 
 ## 優先度
 高
