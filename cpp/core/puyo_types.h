@@ -49,6 +49,16 @@ struct Position {
     int to_bit_index() const {
         return y * FIELD_WIDTH + x;
     }
+    
+    // 比較演算子（std::setで使用）
+    bool operator<(const Position& other) const {
+        if (x != other.x) return x < other.x;
+        return y < other.y;
+    }
+    
+    bool operator==(const Position& other) const {
+        return x == other.x && y == other.y;
+    }
 };
 
 // 128ビットのビットボード
