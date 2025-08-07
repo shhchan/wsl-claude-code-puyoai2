@@ -47,6 +47,9 @@ public:
     // 連鎖グループをフィールドから消去
     void clear_chain_groups(const std::vector<ChainGroup>& groups);
     
+    // おじゃまぷよの巻き込み消去
+    void clear_adjacent_garbage(const std::vector<ChainGroup>& groups);
+    
 private:
     // 位置の隣接チェック
     bool is_adjacent(const Position& pos1, const Position& pos2) const;

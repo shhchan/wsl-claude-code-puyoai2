@@ -149,10 +149,39 @@ void ChainDetector::clear_chain_groups(const std::vector<ChainGroup>& groups) {
         return;
     }
     
+    // まず通常の色ぷよを消去
     for (const auto& group : groups) {
         for (const auto& pos : group.positions) {
             field_->remove_puyo(pos);
         }
+    }
+    
+    // 隣接するおじゃまぷよを巻き込み消去
+    clear_adjacent_garbage(groups);
+}
+
+void ChainDetector::clear_adjacent_garbage(const std::vector<ChainGroup>& groups) {
+    if (!field_) {
+        return;
+    }
+    
+    std::set<Position> garbage_to_remove;
+    
+    // 各消去グループに隣接するおじゃまぷよを検索
+    for (const auto& group : groups) {
+        for (const auto& pos : group.positions) {
+            // 隣接位置をチェック
+            for (const Position& adj_pos : get_adjacent_positions(pos)) {
+                if (field_->get_puyo(adj_pos) == PuyoColor::GARBAGE) {
+                    garbage_to_remove.insert(adj_pos);
+                }
+            }
+        }
+    }
+    
+    // おじゃまぷよを消去
+    for (const Position& pos : garbage_to_remove) {
+        field_->remove_puyo(pos);
     }
 }
 
