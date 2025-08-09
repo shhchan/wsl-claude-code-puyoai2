@@ -220,12 +220,17 @@ platform.generate_tournament_report(tournament_result)
 ### テストファイル管理
 - テスト用ディレクトリ: `tests/`
 - テストファイルは削除せずに`tests/`ディレクトリで保管
+- 過去のテストファイルやバインディングファイルは削除しない
 - 再現可能なテスト手順を文書化
 
 ### テスト結果記録
 - 各チケットのテスト結果は`docs/test-results-XXX.md`に記録
 - テスト実施方法、結果、環境情報を含める
 - テストの再現手順を明記
+
+### 実行環境
+- Pythonコマンドの実行時は必ず`venv`の仮想環境を利用する
+- `source venv/bin/activate`で仮想環境をアクティベートしてから実行
 
 ---
 
