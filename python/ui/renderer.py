@@ -235,6 +235,27 @@ class PuyoRenderer:
         
         return y
     
+    def draw_chain_display(self, chain_count):
+        """連鎖数表示（右側UIエリアの上部に大きく表示）"""
+        x = self.ui_x + 10
+        y = 250  # プレイヤー情報の下、ゲーム情報の上
+        
+        # 背景矩形を描画
+        bg_rect = pygame.Rect(x - 5, y - 5, 280, 40)
+        pygame.draw.rect(self.screen, (50, 50, 100), bg_rect)
+        pygame.draw.rect(self.screen, (255, 255, 255), bg_rect, 2)
+        
+        # 連鎖数テキスト
+        chain_text = f"{chain_count} Chain!"
+        color = (255, 255, 100) if chain_count >= 4 else (255, 200, 100)  # 4連鎖以上は黄色
+        
+        # 大きなフォントで描画
+        font = pygame.font.Font(None, 48)
+        surface = font.render(chain_text, True, color)
+        text_rect = surface.get_rect()
+        text_rect.center = bg_rect.center
+        self.screen.blit(surface, text_rect)
+    
     def draw_controls_help(self):
         """操作方法のヘルプ描画"""
         x = self.ui_x + 10
@@ -272,7 +293,7 @@ class GameVisualizer:
         self.renderer = PuyoRenderer()
         self.running = True
     
-    def render_game(self, game_manager, current_pair=None, highlight_pair=False):
+    def render_game(self, game_manager, current_pair=None, highlight_pair=False, chain_count=0):
         """ゲーム全体の描画"""
         self.renderer.clear_screen()
         
@@ -282,6 +303,10 @@ class GameVisualizer:
             player = game_manager.get_player(i)
             if player:
                 y_offset = self.renderer.draw_player_info(player, y_offset) + 20
+        
+        # 連鎖数表示
+        if chain_count > 0:
+            self.renderer.draw_chain_display(chain_count)
         
         # ゲーム情報描画
         self.renderer.draw_game_info(game_manager)

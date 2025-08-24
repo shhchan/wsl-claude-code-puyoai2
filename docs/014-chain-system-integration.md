@@ -20,26 +20,26 @@ C++のChainSystemクラスをPython UIで活用し、連鎖実行と連鎖数表
 ## 詳細タスク
 
 ### 1. ChainSystemのPython連携
-- [ ] `python_bindings.cpp`にChainSystemResult構造体追加
-- [ ] `python_bindings.cpp`にChainSystemクラス追加
-- [ ] `execute_chains`, `execute_chains_with_drop_bonus`メソッド露出
-- [ ] PlayerクラスからのChainSystemアクセサ追加
+- [x] `python_bindings.cpp`にChainSystemResult構造体追加
+- [x] `python_bindings.cpp`にChainSystemクラス追加
+- [x] `execute_chains`, `execute_chains_with_drop_bonus`メソッド露出
+- [x] PlayerクラスからのChainSystemアクセサ追加
 
 ### 2. 連鎖実行ロジック統合
-- [ ] `GameController._place_current_pair()`に連鎖処理追加
-- [ ] ぷよ設置→重力→連鎖実行の正しい順序実装
-- [ ] 連鎖結果の取得と統計更新
+- [x] `GameController._place_current_pair()`に連鎖処理追加
+- [x] ぷよ設置→重力→連鎖実行の正しい順序実装
+- [x] 連鎖結果の取得と統計更新
 
 ### 3. UI表示機能実装
-- [ ] `renderer.py`に連鎖数表示エリア追加
-- [ ] 最新連鎖数の表示（例: "3 Chain!"）
-- [ ] 連鎖発生時の視覚的フィードバック（色変更など）
+- [x] `renderer.py`に連鎖数表示エリア追加
+- [x] 最新連鎖数の表示（例: "3 Chain!"）
+- [x] 連鎖発生時の視覚的フィードバック（色変更など）
 
 ### 4. 統合テスト
-- [ ] 4つ以上のぷよ隣接時の自動連鎖実行確認
-- [ ] 多段連鎖の正しい実行確認
-- [ ] 連鎖数の正確な表示確認
-- [ ] 既存UI機能の動作確認
+- [x] 4つ以上のぷよ隣接時の自動連鎖実行確認
+- [x] 多段連鎖の正しい実行確認
+- [x] 連鎖数の正確な表示確認
+- [x] 既存UI機能の動作確認
 
 ## 技術詳細
 

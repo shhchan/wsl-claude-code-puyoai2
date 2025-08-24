@@ -249,6 +249,38 @@ Claude Codeは機能実装完了時に自動的にテスト結果記録を作成
 - Pythonコマンドの実行時は必ず`venv`の仮想環境を利用する
 - `source venv/bin/activate`で仮想環境をアクティベートしてから実行
 
+## ビルドとテストの実行方法
+
+### ビルド方法
+```bash
+# 推奨ビルド方法（venv環境使用）
+source venv/bin/activate && python setup.py build_ext --inplace
+```
+
+### テスト実行方法例
+```bash
+# ChainSystem基本テスト例
+source venv/bin/activate && python -c "
+import puyo_ai_platform as pap
+gm = pap.GameManager(pap.GameMode.TOKOTON)
+gm.add_player('Test Player', pap.PlayerType.HUMAN)
+player = gm.get_player(0)
+chain_system = player.get_chain_system()
+field = player.get_field()
+
+# 4つ隣接する赤ぷよを配置
+for i in range(4):
+    field.set_puyo(pap.Position(i, 0), pap.PuyoColor.RED)
+
+chain_result = chain_system.execute_chains()
+print(f'has_chains={chain_result.has_chains()}, total_chains={chain_result.total_chains}')
+print(f'score={chain_result.score_result.total_score}')
+"
+
+# UI統合テスト
+source venv/bin/activate && cd python/ui && python game_controller.py
+```
+
 ---
 
 *この仕様書は、ぷよぷよAI開発基盤の実装指針として、厳密なゲームルール再現と高性能な計算基盤の両立を目指します。C++による高速計算とPythonによる柔軟な制御の組み合わせにより、研究・実用の両方に対応できる強力なプラットフォームを提供します。

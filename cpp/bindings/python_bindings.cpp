@@ -9,6 +9,9 @@
 #include "core/puyo_types.h"
 #include "core/puyo_controller.h"
 #include "core/next_generator.h"
+#include "core/chain_system.h"
+#include "core/chain_detector.h"
+#include "core/score_calculator.h"
 
 namespace py = pybind11;
 
@@ -204,6 +207,48 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def("advance_to_next", &puyo::NextGenerator::advance_to_next)
         .def("to_string", &puyo::NextGenerator::to_string);
     
+    // ChainGroup構造体
+    py::class_<puyo::ChainGroup>(m, "ChainGroup")
+        .def(py::init<>())
+        .def_readwrite("color", &puyo::ChainGroup::color)
+        .def_readwrite("positions", &puyo::ChainGroup::positions)
+        .def("size", &puyo::ChainGroup::size);
+    
+    // ChainResult構造体
+    py::class_<puyo::ChainResult>(m, "ChainResult")
+        .def(py::init<>())
+        .def_readwrite("groups", &puyo::ChainResult::groups)
+        .def_readwrite("chain_level", &puyo::ChainResult::chain_level)
+        .def_readwrite("total_cleared", &puyo::ChainResult::total_cleared)
+        .def_readwrite("color_count", &puyo::ChainResult::color_count)
+        .def("has_chains", &puyo::ChainResult::has_chains)
+        .def("clear", &puyo::ChainResult::clear);
+    
+    // ScoreResult構造体
+    py::class_<puyo::ScoreResult>(m, "ScoreResult")
+        .def(py::init<>())
+        .def_readwrite("chain_score", &puyo::ScoreResult::chain_score)
+        .def_readwrite("drop_score", &puyo::ScoreResult::drop_score)
+        .def_readwrite("all_clear_bonus", &puyo::ScoreResult::all_clear_bonus)
+        .def_readwrite("total_score", &puyo::ScoreResult::total_score)
+        .def_readwrite("is_all_clear", &puyo::ScoreResult::is_all_clear);
+    
+    // ChainSystemResult構造体
+    py::class_<puyo::ChainSystemResult>(m, "ChainSystemResult")
+        .def(py::init<>())
+        .def_readwrite("chain_results", &puyo::ChainSystemResult::chain_results)
+        .def_readwrite("score_result", &puyo::ChainSystemResult::score_result)
+        .def_readwrite("total_chains", &puyo::ChainSystemResult::total_chains)
+        .def("has_chains", &puyo::ChainSystemResult::has_chains);
+    
+    // ChainSystem クラス
+    py::class_<puyo::ChainSystem>(m, "ChainSystem")
+        .def("execute_chains", &puyo::ChainSystem::execute_chains)
+        .def("execute_chains_with_drop_bonus", &puyo::ChainSystem::execute_chains_with_drop_bonus)
+        .def("would_cause_chain", &puyo::ChainSystem::would_cause_chain)
+        .def("count_potential_chains", &puyo::ChainSystem::count_potential_chains)
+        .def("get_chain_info", &puyo::ChainSystem::get_chain_info);
+
     // Player クラス
     py::class_<puyo::Player>(m, "Player")
         .def("get_id", &puyo::Player::get_id)
@@ -213,6 +258,7 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def("set_state", &puyo::Player::set_state)
         .def("get_field", (puyo::Field& (puyo::Player::*)()) &puyo::Player::get_field, py::return_value_policy::reference)
         .def("get_next_generator", (puyo::NextGenerator& (puyo::Player::*)()) &puyo::Player::get_next_generator, py::return_value_policy::reference)
+        .def("get_chain_system", (puyo::ChainSystem& (puyo::Player::*)()) &puyo::Player::get_chain_system, py::return_value_policy::reference)
         .def("get_stats", &puyo::Player::get_stats, py::return_value_policy::reference)
         .def("initialize_game", &puyo::Player::initialize_game)
         .def("reset_game", &puyo::Player::reset_game)

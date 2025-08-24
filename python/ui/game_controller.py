@@ -64,6 +64,9 @@ class GameController:
         self.puyo_controller = None  # C++のPuyoControllerを使用
         self.next_generator = None   # C++のNextGeneratorを使用
         
+        # 連鎖システム
+        self.last_chain_count = 0
+        
         # ゲーム設定（エミュレータ方式：時間経過による落下なし）
         
         # デバッグフラグ
@@ -178,6 +181,21 @@ class GameController:
             if current_player:
                 field = current_player.get_field()
                 field.apply_gravity()
+                
+                # 連鎖処理実行
+                chain_system = current_player.get_chain_system()
+                chain_result = chain_system.execute_chains()
+                
+                # 連鎖結果を記録・表示
+                if chain_result.has_chains():
+                    self.last_chain_count = chain_result.total_chains
+                    if self.debug_mode:
+                        print(f"Chain executed! Total chains: {chain_result.total_chains}")
+                        print(f"Chain score: {chain_result.score_result.total_score}")
+                else:
+                    self.last_chain_count = 0
+                    if self.debug_mode:
+                        print("No chains occurred")
             
             # NextGeneratorを進めて次のペア取得
             if self.next_generator:
@@ -236,7 +254,7 @@ class GameController:
     def render(self):
         """ゲーム描画"""
         highlight = not self.pair_placed
-        self.visualizer.render_game(self.game_manager, self.current_pair, highlight)
+        self.visualizer.render_game(self.game_manager, self.current_pair, highlight, self.last_chain_count)
     
     def handle_events(self):
         """イベント処理"""
