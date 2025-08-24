@@ -20,9 +20,9 @@ class InputManager:
         self.key_mapping = {
             pygame.K_a: pap.MoveCommand.LEFT,
             pygame.K_d: pap.MoveCommand.RIGHT,
-            pygame.K_w: pap.MoveCommand.ROTATE_CCW,  # 反時計回り
-            pygame.K_s: pap.MoveCommand.ROTATE_CW,   # 時計回り
-            pygame.K_SPACE: pap.MoveCommand.DROP,
+            pygame.K_DOWN: pap.MoveCommand.ROTATE_CCW,   # ↓ 反時計回り
+            pygame.K_RIGHT: pap.MoveCommand.ROTATE_CW,   # → 時計回り
+            pygame.K_w: pap.MoveCommand.DROP,            # W ドロップ
         }
         
         # キーリピート防止
@@ -62,9 +62,7 @@ class GameController:
         self.current_pair = None
         self.pair_placed = False
         
-        # ゲーム設定
-        self.auto_drop_delay = 1.0  # 1秒で自動落下
-        self.last_auto_drop = time.time()
+        # ゲーム設定（エミュレータ方式：時間経過による落下なし）
         
         # デバッグフラグ
         self.debug_mode = True
@@ -231,16 +229,7 @@ class GameController:
         
         return False
     
-    def _auto_drop_update(self):
-        """自動落下処理"""
-        current_time = time.time()
-        if current_time - self.last_auto_drop >= self.auto_drop_delay:
-            if self.current_pair and not self.pair_placed:
-                # 自動で一段下に移動
-                if not self._try_move_pair(pap.MoveCommand.DROP):
-                    self._place_current_pair()
-            
-            self.last_auto_drop = current_time
+    # 自動落下処理は削除（エミュレータ方式のため）
     
     def handle_input(self, key):
         """キー入力処理"""
@@ -268,9 +257,6 @@ class GameController:
     
     def update(self):
         """ゲーム状態更新"""
-        # 自動落下処理
-        self._auto_drop_update()
-        
         # ゲーム終了判定
         current_player_id = self.game_manager.get_current_player()
         current_player = self.game_manager.get_player(current_player_id)
@@ -309,7 +295,7 @@ def main():
     controller = GameController(pap.GameMode.TOKOTON)
     controller.setup_game(["Human Player"])
     
-    print("Game loop started. Use WASD to control, SPACE to drop, R to reset, ESC to quit.")
+    print("Game loop started. Use A/D to move, ↓/→ to rotate, W to drop, R to reset, ESC to quit.")
     
     # メインループ
     running = True

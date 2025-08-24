@@ -163,9 +163,9 @@ class PuyoRenderer:
         y += 25
         self.draw_text("A/D - Move Left/Right", x, y)
         y += 20
-        self.draw_text("W/S - Rotate", x, y)
+        self.draw_text("↓/→ - Rotate CCW/CW", x, y)
         y += 20
-        self.draw_text("SPACE - Drop", x, y)
+        self.draw_text("W - Drop", x, y)
         y += 20
         self.draw_text("R - Reset Game", x, y)
         y += 20

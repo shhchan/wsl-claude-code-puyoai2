@@ -19,8 +19,8 @@ def main():
     
     print("操作方法:")
     print("  A/D     - 左右移動")
-    print("  W/S     - 回転（反時計回り/時計回り）")  
-    print("  SPACE   - ドロップ")
+    print("  ↓/→     - 回転（反時計回り/時計回り）")  
+    print("  W       - ドロップ")
     print("  R       - ゲームリセット")
     print("  ESC     - 終了")
     print()

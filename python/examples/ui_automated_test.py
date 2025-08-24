@@ -72,9 +72,9 @@ def test_ui_components():
         test_keys = [
             (pygame.K_a, pap.MoveCommand.LEFT),
             (pygame.K_d, pap.MoveCommand.RIGHT),
-            (pygame.K_w, pap.MoveCommand.ROTATE_CCW),
-            (pygame.K_s, pap.MoveCommand.ROTATE_CW),
-            (pygame.K_SPACE, pap.MoveCommand.DROP),
+            (pygame.K_DOWN, pap.MoveCommand.ROTATE_CCW),
+            (pygame.K_RIGHT, pap.MoveCommand.ROTATE_CW),
+            (pygame.K_w, pap.MoveCommand.DROP),
         ]
         
         for key, expected_command in test_keys:
