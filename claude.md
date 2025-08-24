@@ -215,6 +215,7 @@ platform.generate_tournament_report(tournament_result)
 
 ## テストの管理について
 
+機能実装に対して，必ずテストを作成してください．
 プロジェクトのテストは以下のように管理します：
 
 ### テストファイル管理
