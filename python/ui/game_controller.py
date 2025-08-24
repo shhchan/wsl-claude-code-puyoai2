@@ -66,6 +66,7 @@ class GameController:
         
         # 連鎖システム
         self.last_chain_count = 0
+        self.last_score_details = None  # 最新のスコア詳細
         
         # ゲーム設定（エミュレータ方式：時間経過による落下なし）
         
@@ -171,6 +172,9 @@ class GameController:
         if not self.current_pair or self.pair_placed or not self.puyo_controller:
             return False
         
+        # 軸ぷよの落下距離を計算（ドロップボーナス用）
+        drop_height = 12 - self.current_pair.pos.y  # 12段目からの距離
+        
         # C++のPuyoControllerでぷよペア設置
         if self.puyo_controller.place_current_pair():
             self.pair_placed = True
@@ -182,19 +186,36 @@ class GameController:
                 field = current_player.get_field()
                 field.apply_gravity()
                 
-                # 連鎖処理実行
+                # 落下ボーナス付きで連鎖処理実行
                 chain_system = current_player.get_chain_system()
-                chain_result = chain_system.execute_chains()
+                chain_result = chain_system.execute_chains_with_drop_bonus(drop_height)
+                
+                # スコア詳細を保存（UI表示用）
+                self.last_score_details = chain_result.score_result
+                
+                # プレイヤー統計を更新
+                if chain_result.score_result.total_score > 0:
+                    stats = current_player.get_stats()
+                    stats.total_score += chain_result.score_result.total_score
+                    
+                    # 連鎖統計の更新
+                    if chain_result.has_chains():
+                        stats.total_chains += chain_result.total_chains
+                        if chain_result.total_chains > stats.max_chain:
+                            stats.max_chain = chain_result.total_chains
                 
                 # 連鎖結果を記録・表示
                 if chain_result.has_chains():
                     self.last_chain_count = chain_result.total_chains
                     if self.debug_mode:
                         print(f"Chain executed! Total chains: {chain_result.total_chains}")
-                        print(f"Chain score: {chain_result.score_result.total_score}")
+                        print(f"Score details - Chain: {chain_result.score_result.chain_score}, Drop: {chain_result.score_result.drop_score}, All Clear: {chain_result.score_result.all_clear_bonus}")
+                        print(f"Total score gained: {chain_result.score_result.total_score}")
                 else:
                     self.last_chain_count = 0
-                    if self.debug_mode:
+                    if self.debug_mode and chain_result.score_result.drop_score > 0:
+                        print(f"No chains, but drop bonus: {chain_result.score_result.drop_score}")
+                    elif self.debug_mode:
                         print("No chains occurred")
             
             # NextGeneratorを進めて次のペア取得
@@ -231,6 +252,10 @@ class GameController:
         """ゲームリセット"""
         self.game_manager.reset_game()
         
+        # スコア詳細もリセット
+        self.last_score_details = None
+        self.last_chain_count = 0
+        
         # NextGeneratorを再初期化
         if self.next_generator:
             self.next_generator.initialize_next_sequence()
@@ -254,7 +279,7 @@ class GameController:
     def render(self):
         """ゲーム描画"""
         highlight = not self.pair_placed
-        self.visualizer.render_game(self.game_manager, self.current_pair, highlight, self.last_chain_count)
+        self.visualizer.render_game(self.game_manager, self.current_pair, highlight, self.last_chain_count, self.last_score_details)
     
     def handle_events(self):
         """イベント処理"""

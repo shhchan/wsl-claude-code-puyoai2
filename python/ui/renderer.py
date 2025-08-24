@@ -193,7 +193,7 @@ class PuyoRenderer:
         pygame.draw.rect(self.screen, COLORS[pair.child], rect2)
         pygame.draw.rect(self.screen, (0, 0, 0), rect2, 1)
     
-    def draw_player_info(self, player, y_offset=0):
+    def draw_player_info(self, player, y_offset=0, last_score_details=None):
         """プレイヤー情報描画"""
         x = self.ui_x + 10
         y = 20 + y_offset
@@ -205,9 +205,25 @@ class PuyoRenderer:
         next_generator = player.get_next_generator()
         y = self.draw_next_display(next_generator, y + 10)
         
-        # 統計情報
+        # スコア表示（動的に更新される詳細スコア）
         stats = player.get_stats()
-        y += self.draw_text(f"Score: {stats.total_score}", x, y) + 5
+        y += self.draw_text(f"Total Score: {stats.total_score:,}", x, y, large=True, color=(255, 255, 100)) + 5
+        
+        # 最新のスコア詳細表示
+        if last_score_details:
+            y += self.draw_text("─────────────", x, y, color=(150, 150, 150)) + 3
+            if last_score_details.chain_score > 0:
+                y += self.draw_text(f"Chain: +{last_score_details.chain_score}", x, y, color=(100, 255, 100)) + 3
+            if last_score_details.drop_score > 0:
+                y += self.draw_text(f"Drop: +{last_score_details.drop_score}", x, y, color=(100, 200, 255)) + 3
+            if last_score_details.all_clear_bonus > 0:
+                y += self.draw_text(f"All Clear: +{last_score_details.all_clear_bonus}", x, y, color=(255, 100, 255)) + 3
+            y += self.draw_text("─────────────", x, y, color=(150, 150, 150)) + 3
+            y += self.draw_text(f"Last: +{last_score_details.total_score}", x, y, color=(255, 200, 100)) + 5
+        else:
+            y += 10
+        
+        # その他統計情報
         y += self.draw_text(f"Max Chain: {stats.max_chain}", x, y) + 5
         y += self.draw_text(f"Total Chains: {stats.total_chains}", x, y) + 5
         y += self.draw_text(f"Sent Garbage: {stats.sent_garbage}", x, y) + 5
@@ -293,7 +309,7 @@ class GameVisualizer:
         self.renderer = PuyoRenderer()
         self.running = True
     
-    def render_game(self, game_manager, current_pair=None, highlight_pair=False, chain_count=0):
+    def render_game(self, game_manager, current_pair=None, highlight_pair=False, chain_count=0, last_score_details=None):
         """ゲーム全体の描画"""
         self.renderer.clear_screen()
         
@@ -302,7 +318,10 @@ class GameVisualizer:
         for i in range(2):  # 最大2人まで
             player = game_manager.get_player(i)
             if player:
-                y_offset = self.renderer.draw_player_info(player, y_offset) + 20
+                # 現在のプレイヤーにのみスコア詳細を表示
+                current_player_id = game_manager.get_current_player()
+                score_details = last_score_details if i == current_player_id else None
+                y_offset = self.renderer.draw_player_info(player, y_offset, score_details) + 20
         
         # 連鎖数表示
         if chain_count > 0:

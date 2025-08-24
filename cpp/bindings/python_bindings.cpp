@@ -233,6 +233,16 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def_readwrite("total_score", &puyo::ScoreResult::total_score)
         .def_readwrite("is_all_clear", &puyo::ScoreResult::is_all_clear);
     
+    // ScoreCalculator クラス
+    py::class_<puyo::ScoreCalculator>(m, "ScoreCalculator")
+        .def(py::init<>())
+        .def("calculate_chain_score", &puyo::ScoreCalculator::calculate_chain_score)
+        .def("calculate_drop_bonus", &puyo::ScoreCalculator::calculate_drop_bonus)
+        .def("is_all_clear", &puyo::ScoreCalculator::is_all_clear)
+        .def("set_pending_all_clear_bonus", &puyo::ScoreCalculator::set_pending_all_clear_bonus)
+        .def("get_pending_all_clear_bonus", &puyo::ScoreCalculator::get_pending_all_clear_bonus)
+        .def("reset", &puyo::ScoreCalculator::reset);
+    
     // ChainSystemResult構造体
     py::class_<puyo::ChainSystemResult>(m, "ChainSystemResult")
         .def(py::init<>())
@@ -243,11 +253,13 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
     
     // ChainSystem クラス
     py::class_<puyo::ChainSystem>(m, "ChainSystem")
+        .def(py::init<puyo::Field*>())
         .def("execute_chains", &puyo::ChainSystem::execute_chains)
         .def("execute_chains_with_drop_bonus", &puyo::ChainSystem::execute_chains_with_drop_bonus)
         .def("would_cause_chain", &puyo::ChainSystem::would_cause_chain)
         .def("count_potential_chains", &puyo::ChainSystem::count_potential_chains)
-        .def("get_chain_info", &puyo::ChainSystem::get_chain_info);
+        .def("get_chain_info", &puyo::ChainSystem::get_chain_info)
+        .def("get_score_calculator", (puyo::ScoreCalculator& (puyo::ChainSystem::*)()) &puyo::ChainSystem::get_score_calculator, py::return_value_policy::reference);
 
     // Player クラス
     py::class_<puyo::Player>(m, "Player")
