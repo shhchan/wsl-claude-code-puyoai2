@@ -62,6 +62,7 @@ class GameController:
         self.current_pair = None
         self.pair_placed = False
         self.puyo_controller = None  # C++のPuyoControllerを使用
+        self.next_generator = None   # C++のNextGeneratorを使用
         
         # ゲーム設定（エミュレータ方式：時間経過による落下なし）
         
@@ -87,9 +88,16 @@ class GameController:
         if current_player:
             field = current_player.get_field()
             self.puyo_controller = pap.PuyoController(field)
+            
+            # NextGeneratorを初期化
+            self.next_generator = current_player.get_next_generator()
+            # 4色設定
+            colors = [pap.PuyoColor.RED, pap.PuyoColor.GREEN, pap.PuyoColor.BLUE, pap.PuyoColor.YELLOW]
+            self.next_generator.set_active_colors(colors)
+            self.next_generator.initialize_next_sequence()
         
-        # 初期ぷよペア生成
-        self._generate_new_pair()
+        # NextGeneratorから現在のペアを取得
+        self._get_current_pair_from_next_generator()
         
         if self.debug_mode:
             print("Game setup completed")
@@ -99,21 +107,13 @@ class GameController:
         # 現在は手動制御のため、常にNONEを返す
         return pap.MoveCommand.NONE
     
-    def _generate_new_pair(self):
-        """新しいぷよペアを生成"""
-        # とりあえず固定ペアを生成（本来はNextGeneratorから取得）
-        colors = [pap.PuyoColor.RED, pap.PuyoColor.GREEN, pap.PuyoColor.BLUE, pap.PuyoColor.YELLOW]
-        import random
+    def _get_current_pair_from_next_generator(self):
+        """NextGeneratorから現在のぷよペアを取得"""
+        if not self.next_generator:
+            return
         
-        axis_color = random.choice(colors)
-        child_color = random.choice(colors)
-        
-        self.current_pair = pap.PuyoPair(
-            axis=axis_color,
-            child=child_color,
-            pos=pap.Position(2, 11),  # 3列目、12段目から開始
-            rot=pap.Rotation.UP
-        )
+        # NextGeneratorから現在のペアを取得
+        self.current_pair = self.next_generator.get_current_pair()
         self.pair_placed = False
         
         # C++のPuyoControllerに現在のペアを設定
@@ -121,7 +121,7 @@ class GameController:
             self.puyo_controller.set_current_pair(self.current_pair)
         
         if self.debug_mode:
-            print(f"New pair: {axis_color} + {child_color}")
+            print(f"New pair from NextGenerator: {self.current_pair.axis} + {self.current_pair.child}")
     
     def _try_move_pair(self, command):
         """ぷよペアの移動試行（C++のPuyoControllerを使用）"""
@@ -179,8 +179,10 @@ class GameController:
                 field = current_player.get_field()
                 field.apply_gravity()
             
-            # 次のペア生成
-            self._generate_new_pair()
+            # NextGeneratorを進めて次のペア取得
+            if self.next_generator:
+                self.next_generator.advance_to_next()
+                self._get_current_pair_from_next_generator()
             
             if self.debug_mode:
                 print("Pair placed, generated new pair")
@@ -210,7 +212,11 @@ class GameController:
     def reset_game(self):
         """ゲームリセット"""
         self.game_manager.reset_game()
-        self._generate_new_pair()
+        
+        # NextGeneratorを再初期化
+        if self.next_generator:
+            self.next_generator.initialize_next_sequence()
+            self._get_current_pair_from_next_generator()
         
         if self.debug_mode:
             print("Game reset")

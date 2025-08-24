@@ -147,6 +147,52 @@ class PuyoRenderer:
         self.screen.blit(surface, (x, y))
         return surface.get_height()
     
+    def draw_next_display(self, next_generator, y_start):
+        """ネクスト表示"""
+        if not next_generator:
+            return y_start
+        
+        x = self.ui_x + 10
+        y = y_start
+        
+        # ネクストヘッダー
+        y += self.draw_text("NEXT", x, y, large=True) + 10
+        
+        # 現在操作中（参考表示）
+        try:
+            current_pair = next_generator.get_current_pair()
+            y += self.draw_text("Current:", x, y) + 5
+            self.draw_next_pair_preview(current_pair, x + 10, y, small=True)
+            y += 35
+        except:
+            pass
+        
+        # ネクストペア表示（1つ先、2つ先）
+        for i in range(1, 3):
+            try:
+                next_pair = next_generator.get_next_pair(i)
+                y += self.draw_text(f"Next {i}:", x, y) + 5
+                self.draw_next_pair_preview(next_pair, x + 10, y, small=True)
+                y += 35
+            except:
+                pass
+        
+        return y + 10
+    
+    def draw_next_pair_preview(self, pair, x, y, small=True):
+        """ネクストペアのプレビュー描画"""
+        size = 20 if small else CELL_SIZE
+        
+        # 軸ぷよ（左）
+        rect1 = pygame.Rect(x, y, size, size)
+        pygame.draw.rect(self.screen, COLORS[pair.axis], rect1)
+        pygame.draw.rect(self.screen, (0, 0, 0), rect1, 1)
+        
+        # 子ぷよ（右）
+        rect2 = pygame.Rect(x + size + 2, y, size, size)
+        pygame.draw.rect(self.screen, COLORS[pair.child], rect2)
+        pygame.draw.rect(self.screen, (0, 0, 0), rect2, 1)
+    
     def draw_player_info(self, player, y_offset=0):
         """プレイヤー情報描画"""
         x = self.ui_x + 10
@@ -154,6 +200,10 @@ class PuyoRenderer:
         
         # プレイヤー名
         y += self.draw_text(f"Player: {player.get_name()}", x, y, large=True) + 5
+        
+        # ネクスト表示
+        next_generator = player.get_next_generator()
+        y = self.draw_next_display(next_generator, y + 10)
         
         # 統計情報
         stats = player.get_stats()

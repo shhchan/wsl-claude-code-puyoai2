@@ -8,6 +8,7 @@
 #include "core/player.h"
 #include "core/puyo_types.h"
 #include "core/puyo_controller.h"
+#include "core/next_generator.h"
 
 namespace py = pybind11;
 
@@ -191,6 +192,18 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def("can_rotate_clockwise", &puyo::PuyoController::can_rotate_clockwise)
         .def("can_rotate_counter_clockwise", &puyo::PuyoController::can_rotate_counter_clockwise);
     
+    // NextGenerator クラス
+    py::class_<puyo::NextGenerator>(m, "NextGenerator")
+        .def(py::init<>())
+        .def(py::init<unsigned int>())
+        .def("set_active_colors", &puyo::NextGenerator::set_active_colors)
+        .def("get_active_colors", &puyo::NextGenerator::get_active_colors, py::return_value_policy::reference)
+        .def("initialize_next_sequence", &puyo::NextGenerator::initialize_next_sequence)
+        .def("get_current_pair", &puyo::NextGenerator::get_current_pair)
+        .def("get_next_pair", &puyo::NextGenerator::get_next_pair)
+        .def("advance_to_next", &puyo::NextGenerator::advance_to_next)
+        .def("to_string", &puyo::NextGenerator::to_string);
+    
     // Player クラス
     py::class_<puyo::Player>(m, "Player")
         .def("get_id", &puyo::Player::get_id)
@@ -199,6 +212,7 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def("get_state", &puyo::Player::get_state)
         .def("set_state", &puyo::Player::set_state)
         .def("get_field", (puyo::Field& (puyo::Player::*)()) &puyo::Player::get_field, py::return_value_policy::reference)
+        .def("get_next_generator", (puyo::NextGenerator& (puyo::Player::*)()) &puyo::Player::get_next_generator, py::return_value_policy::reference)
         .def("get_stats", &puyo::Player::get_stats, py::return_value_policy::reference)
         .def("initialize_game", &puyo::Player::initialize_game)
         .def("reset_game", &puyo::Player::reset_game)
