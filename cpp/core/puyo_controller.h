@@ -19,6 +19,7 @@ class PuyoController {
 private:
     Field* field_;
     PuyoPair current_pair_;
+    bool next_rotation_is_quick_turn_;
     
 public:
     PuyoController(Field* field);

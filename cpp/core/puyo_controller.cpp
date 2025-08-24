@@ -2,13 +2,14 @@
 
 namespace puyo {
 
-PuyoController::PuyoController(Field* field) : field_(field) {
+PuyoController::PuyoController(Field* field) : field_(field), next_rotation_is_quick_turn_(false) {
     // デフォルトの空ペアで初期化
     current_pair_ = PuyoPair();
 }
 
 void PuyoController::set_current_pair(const PuyoPair& pair) {
     current_pair_ = pair;
+    next_rotation_is_quick_turn_ = false;  // フラグリセット
 }
 
 bool PuyoController::execute_command(MoveCommand command) {
@@ -36,6 +37,7 @@ bool PuyoController::move_left() {
     }
     
     current_pair_.pos.x--;
+    next_rotation_is_quick_turn_ = false;  // フラグリセット
     return true;
 }
 
@@ -45,6 +47,7 @@ bool PuyoController::move_right() {
     }
     
     current_pair_.pos.x++;
+    next_rotation_is_quick_turn_ = false;  // フラグリセット
     return true;
 }
 
@@ -67,6 +70,12 @@ bool PuyoController::rotate_counter_clockwise() {
 
 // 回転処理（キック・クイックターン対応）
 bool PuyoController::perform_rotation(bool clockwise) {
+    // 2回目の回転でクイックターンフラグが立っている場合
+    if (next_rotation_is_quick_turn_) {
+        next_rotation_is_quick_turn_ = false;
+        return perform_quick_turn();
+    }
+    
     PuyoPair original = current_pair_;
     PuyoPair rotated = create_rotated_pair(current_pair_, clockwise);
     
@@ -148,9 +157,10 @@ bool PuyoController::perform_rotation(bool clockwise) {
         }
     }
     
-    // 左右両方に壁・ぷよがある場合: クイックターンへ
+    // 左右両方に壁・ぷよがある場合: 次回回転でクイックターンフラグを設定
     if (can_perform_quick_turn()) {
-        return perform_quick_turn();
+        next_rotation_is_quick_turn_ = true;
+        return false;  // 1回目は回転しない
     }
     
     // 回転失敗
@@ -196,6 +206,7 @@ bool PuyoController::place_current_pair() {
         return false;
     }
     
+    next_rotation_is_quick_turn_ = false;  // フラグリセット
     return field_->place_puyo_pair(current_pair_);
 }
 
