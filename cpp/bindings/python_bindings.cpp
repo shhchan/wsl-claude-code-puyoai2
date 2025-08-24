@@ -173,6 +173,24 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def_readwrite("player_stats", &puyo::GameResult::player_stats)
         .def_readwrite("total_turns", &puyo::GameResult::total_turns);
     
+    // PuyoController クラス
+    py::class_<puyo::PuyoController>(m, "PuyoController")
+        .def(py::init<puyo::Field*>())
+        .def("set_current_pair", &puyo::PuyoController::set_current_pair)
+        .def("get_current_pair", &puyo::PuyoController::get_current_pair)
+        .def("execute_command", &puyo::PuyoController::execute_command)
+        .def("move_left", &puyo::PuyoController::move_left)
+        .def("move_right", &puyo::PuyoController::move_right)
+        .def("move_down", &puyo::PuyoController::move_down)
+        .def("rotate_clockwise", &puyo::PuyoController::rotate_clockwise)
+        .def("rotate_counter_clockwise", &puyo::PuyoController::rotate_counter_clockwise)
+        .def("place_current_pair", &puyo::PuyoController::place_current_pair)
+        .def("can_move_left", &puyo::PuyoController::can_move_left)
+        .def("can_move_right", &puyo::PuyoController::can_move_right)
+        .def("can_move_down", &puyo::PuyoController::can_move_down)
+        .def("can_rotate_clockwise", &puyo::PuyoController::can_rotate_clockwise)
+        .def("can_rotate_counter_clockwise", &puyo::PuyoController::can_rotate_counter_clockwise);
+    
     // Player クラス
     py::class_<puyo::Player>(m, "Player")
         .def("get_id", &puyo::Player::get_id)

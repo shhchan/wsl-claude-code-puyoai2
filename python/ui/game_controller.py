@@ -61,6 +61,7 @@ class GameController:
         # 操作中のぷよペア
         self.current_pair = None
         self.pair_placed = False
+        self.puyo_controller = None  # C++のPuyoControllerを使用
         
         # ゲーム設定（エミュレータ方式：時間経過による落下なし）
         
@@ -80,6 +81,12 @@ class GameController:
         
         # 入力コールバック設定
         self.game_manager.set_input_callback(self._input_callback)
+        
+        # PuyoControllerを初期化（現在のプレイヤーのフィールドを使用）
+        current_player = self.game_manager.get_player(0)
+        if current_player:
+            field = current_player.get_field()
+            self.puyo_controller = pap.PuyoController(field)
         
         # 初期ぷよペア生成
         self._generate_new_pair()
@@ -109,115 +116,68 @@ class GameController:
         )
         self.pair_placed = False
         
+        # C++のPuyoControllerに現在のペアを設定
+        if self.puyo_controller:
+            self.puyo_controller.set_current_pair(self.current_pair)
+        
         if self.debug_mode:
             print(f"New pair: {axis_color} + {child_color}")
     
     def _try_move_pair(self, command):
-        """ぷよペアの移動試行"""
-        if not self.current_pair or self.pair_placed:
+        """ぷよペアの移動試行（C++のPuyoControllerを使用）"""
+        if not self.current_pair or self.pair_placed or not self.puyo_controller:
             return False
-            
-        current_player_id = self.game_manager.get_current_player()
-        current_player = self.game_manager.get_player(current_player_id)
-        if not current_player:
-            return False
-            
-        field = current_player.get_field()
         
-        # 新しい位置/回転を計算
-        new_pair = pap.PuyoPair(self.current_pair.axis, self.current_pair.child, 
-                               self.current_pair.pos, self.current_pair.rot)
-        
-        if command == pap.MoveCommand.LEFT:
-            new_pair.pos = pap.Position(new_pair.pos.x - 1, new_pair.pos.y)
-        elif command == pap.MoveCommand.RIGHT:
-            new_pair.pos = pap.Position(new_pair.pos.x + 1, new_pair.pos.y)
-        elif command == pap.MoveCommand.DROP:
-            new_pair.pos = pap.Position(new_pair.pos.x, new_pair.pos.y - 1)
-        elif command == pap.MoveCommand.ROTATE_CW:
-            # 時計回り回転
-            if new_pair.rot == pap.Rotation.UP:
-                new_pair.rot = pap.Rotation.RIGHT
-            elif new_pair.rot == pap.Rotation.RIGHT:
-                new_pair.rot = pap.Rotation.DOWN
-            elif new_pair.rot == pap.Rotation.DOWN:
-                new_pair.rot = pap.Rotation.LEFT
-            elif new_pair.rot == pap.Rotation.LEFT:
-                new_pair.rot = pap.Rotation.UP
-        elif command == pap.MoveCommand.ROTATE_CCW:
-            # 反時計回り回転
-            if new_pair.rot == pap.Rotation.UP:
-                new_pair.rot = pap.Rotation.LEFT
-            elif new_pair.rot == pap.Rotation.LEFT:
-                new_pair.rot = pap.Rotation.DOWN
-            elif new_pair.rot == pap.Rotation.DOWN:
-                new_pair.rot = pap.Rotation.RIGHT
-            elif new_pair.rot == pap.Rotation.RIGHT:
-                new_pair.rot = pap.Rotation.UP
-        
-        # 配置可能性チェック
-        if field.can_place_puyo_pair(new_pair):
-            self.current_pair = new_pair
-            
-            # DROPコマンドの場合、さらに下に落とせるかチェック
-            if command == pap.MoveCommand.DROP:
-                self._drop_pair_to_bottom()
-            
+        # DROPコマンドの特殊処理（底まで落下）
+        if command == pap.MoveCommand.DROP:
+            self._drop_pair_to_bottom()
             return True
-        else:
-            # 配置できない場合、DROPなら現在位置に設置
-            if command == pap.MoveCommand.DROP:
-                self._place_current_pair()
-                return True
+        
+        # C++のPuyoControllerで操作実行（壁キック処理含む）
+        success = self.puyo_controller.execute_command(command)
+        
+        if success:
+            # PuyoControllerから更新されたペア状態を取得
+            self.current_pair = self.puyo_controller.get_current_pair()
             
-        return False
+            if self.debug_mode and command in [pap.MoveCommand.ROTATE_CW, pap.MoveCommand.ROTATE_CCW]:
+                print(f"Rotation executed with wall kick support")
+        else:
+            if self.debug_mode and command in [pap.MoveCommand.ROTATE_CW, pap.MoveCommand.ROTATE_CCW]:
+                print(f"Rotation failed - no valid rotation or kick possible")
+        
+        return success
     
     def _drop_pair_to_bottom(self):
-        """ぷよペアを底まで落下"""
-        if not self.current_pair:
+        """ぷよペアを底まで落下（C++のPuyoControllerを使用）"""
+        if not self.current_pair or not self.puyo_controller:
             return
         
-        current_player_id = self.game_manager.get_current_player()
-        current_player = self.game_manager.get_player(current_player_id)
-        if not current_player:
-            return
-        
-        field = current_player.get_field()
-        
-        # 最下段まで落下
-        while True:
-            test_pair = pap.PuyoPair(
-                self.current_pair.axis, self.current_pair.child,
-                pap.Position(self.current_pair.pos.x, self.current_pair.pos.y - 1),
-                self.current_pair.rot
-            )
-            
-            if field.can_place_puyo_pair(test_pair):
-                self.current_pair = test_pair
-            else:
+        # C++のPuyoControllerで下移動を繰り返して底まで落下
+        while self.puyo_controller.can_move_down():
+            if not self.puyo_controller.move_down():
                 break
+            # Python側の現在ペアも更新
+            self.current_pair = self.puyo_controller.get_current_pair()
         
-        # 設置
+        # 底に到達したので設置
         self._place_current_pair()
     
     def _place_current_pair(self):
-        """現在のぷよペアを設置"""
-        if not self.current_pair or self.pair_placed:
+        """現在のぷよペアを設置（C++のPuyoControllerを使用）"""
+        if not self.current_pair or self.pair_placed or not self.puyo_controller:
             return False
         
-        current_player_id = self.game_manager.get_current_player()
-        current_player = self.game_manager.get_player(current_player_id)
-        if not current_player:
-            return False
-        
-        field = current_player.get_field()
-        
-        # ぷよペア設置
-        if field.place_puyo_pair(self.current_pair):
+        # C++のPuyoControllerでぷよペア設置
+        if self.puyo_controller.place_current_pair():
             self.pair_placed = True
             
             # 重力適用
-            field.apply_gravity()
+            current_player_id = self.game_manager.get_current_player()
+            current_player = self.game_manager.get_player(current_player_id)
+            if current_player:
+                field = current_player.get_field()
+                field.apply_gravity()
             
             # 次のペア生成
             self._generate_new_pair()

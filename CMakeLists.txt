@@ -22,11 +22,21 @@ include_directories(cpp)
 
 # C++ライブラリの作成
 add_library(puyo_core STATIC ${CPP_CORE_SOURCES})
-add_library(puyo_ai STATIC ${CPP_AI_SOURCES})
+set_property(TARGET puyo_core PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# AI ライブラリは AI ソースファイルがある場合のみ作成
+if(CPP_AI_SOURCES)
+    add_library(puyo_ai STATIC ${CPP_AI_SOURCES})
+    set_property(TARGET puyo_ai PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set(AI_LIB puyo_ai)
+else()
+    message(STATUS "No AI sources found, skipping AI library creation")
+    set(AI_LIB "")
+endif()
 
 # Python拡張モジュールの作成
 pybind11_add_module(puyo_ai_platform ${CPP_BINDINGS_SOURCES})
-target_link_libraries(puyo_ai_platform PRIVATE puyo_core puyo_ai)
+target_link_libraries(puyo_ai_platform PRIVATE puyo_core ${AI_LIB})
 
 # コンパイル時の定義
 target_compile_definitions(puyo_ai_platform PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})

@@ -27,7 +27,7 @@ CELL_SIZE = 40          # 各セルのピクセルサイズ
 FIELD_MARGIN = 20       # フィールド周りの余白
 UI_WIDTH = 300          # UI部分の幅
 WINDOW_WIDTH = FIELD_MARGIN * 2 + pap.FIELD_WIDTH * CELL_SIZE + UI_WIDTH
-WINDOW_HEIGHT = FIELD_MARGIN * 2 + pap.VISIBLE_HEIGHT * CELL_SIZE
+WINDOW_HEIGHT = FIELD_MARGIN * 2 + pap.FIELD_HEIGHT * CELL_SIZE
 
 class PuyoRenderer:
     """ぷよぷよゲームの描画クラス"""
@@ -56,7 +56,7 @@ class PuyoRenderer:
     def draw_cell(self, x, y, color, border=True):
         """単一セルの描画"""
         pixel_x = self.field_x + x * CELL_SIZE
-        pixel_y = self.field_y + (pap.VISIBLE_HEIGHT - 1 - y) * CELL_SIZE
+        pixel_y = self.field_y + (pap.FIELD_HEIGHT - 1 - y) * CELL_SIZE
         
         rect = pygame.Rect(pixel_x, pixel_y, CELL_SIZE, CELL_SIZE)
         pygame.draw.rect(self.screen, COLORS[color], rect)
@@ -70,41 +70,72 @@ class PuyoRenderer:
         field_rect = pygame.Rect(
             self.field_x - 2, self.field_y - 2,
             pap.FIELD_WIDTH * CELL_SIZE + 4,
-            pap.VISIBLE_HEIGHT * CELL_SIZE + 4
+            pap.FIELD_HEIGHT * CELL_SIZE + 4
         )
         pygame.draw.rect(self.screen, (0, 0, 0), field_rect, 2)
         
-        # 各セルを描画（可視部分のみ）
-        for y in range(pap.VISIBLE_HEIGHT):
+        # 可視部分との境界線を表示（12段目と13段目の間）
+        boundary_y = self.field_y + (pap.FIELD_HEIGHT - pap.VISIBLE_HEIGHT) * CELL_SIZE - 1
+        pygame.draw.line(self.screen, (255, 255, 0), 
+                        (self.field_x, boundary_y), 
+                        (self.field_x + pap.FIELD_WIDTH * CELL_SIZE, boundary_y), 2)
+        
+        # 各セルを描画（14段全体）
+        for y in range(pap.FIELD_HEIGHT):
             for x in range(pap.FIELD_WIDTH):
                 pos = pap.Position(x, y)
                 color = field.get_puyo(pos)
-                self.draw_cell(x, y, color)
+                # 隠し段（13段目以上）は少し暗く表示
+                if y >= pap.VISIBLE_HEIGHT:
+                    if color != pap.PuyoColor.EMPTY:
+                        # 隠し段のぷよは少し暗く表示
+                        dark_color = tuple(max(0, c - 50) for c in COLORS[color])
+                        pixel_x = self.field_x + x * CELL_SIZE
+                        pixel_y = self.field_y + (pap.FIELD_HEIGHT - 1 - y) * CELL_SIZE
+                        rect = pygame.Rect(pixel_x, pixel_y, CELL_SIZE, CELL_SIZE)
+                        pygame.draw.rect(self.screen, dark_color, rect)
+                        pygame.draw.rect(self.screen, (100, 100, 100), rect, 2)
+                    else:
+                        # 空セルは格子のみ表示
+                        pixel_x = self.field_x + x * CELL_SIZE
+                        pixel_y = self.field_y + (pap.FIELD_HEIGHT - 1 - y) * CELL_SIZE
+                        rect = pygame.Rect(pixel_x, pixel_y, CELL_SIZE, CELL_SIZE)
+                        pygame.draw.rect(self.screen, (80, 80, 80), rect, 1)
+                else:
+                    self.draw_cell(x, y, color)
     
     def draw_puyo_pair(self, pair, highlight=False):
-        """操作中のぷよペアを描画（可視部分のみ）"""
+        """操作中のぷよペアを描画（14段全体対応）"""
         # 軸ぷよ
-        if pair.pos.y < pap.VISIBLE_HEIGHT:
+        if pair.pos.y < pap.FIELD_HEIGHT:
             color = COLORS[pair.axis]
             if highlight:
                 # ハイライト効果
                 color = tuple(min(255, c + 50) for c in color)
             
+            # 隠し段の場合は少し暗くする
+            if pair.pos.y >= pap.VISIBLE_HEIGHT:
+                color = tuple(max(0, c - 30) for c in color)
+            
             pixel_x = self.field_x + pair.pos.x * CELL_SIZE
-            pixel_y = self.field_y + (pap.VISIBLE_HEIGHT - 1 - pair.pos.y) * CELL_SIZE
+            pixel_y = self.field_y + (pap.FIELD_HEIGHT - 1 - pair.pos.y) * CELL_SIZE
             rect = pygame.Rect(pixel_x, pixel_y, CELL_SIZE, CELL_SIZE)
             pygame.draw.rect(self.screen, color, rect)
             pygame.draw.rect(self.screen, (255, 255, 255), rect, 3)  # 白い枠
         
         # 子ぷよ
         child_pos = pair.get_child_position()
-        if child_pos.y < pap.VISIBLE_HEIGHT:
+        if child_pos.y < pap.FIELD_HEIGHT:
             color = COLORS[pair.child]
             if highlight:
                 color = tuple(min(255, c + 50) for c in color)
             
+            # 隠し段の場合は少し暗くする
+            if child_pos.y >= pap.VISIBLE_HEIGHT:
+                color = tuple(max(0, c - 30) for c in color)
+            
             pixel_x = self.field_x + child_pos.x * CELL_SIZE
-            pixel_y = self.field_y + (pap.VISIBLE_HEIGHT - 1 - child_pos.y) * CELL_SIZE
+            pixel_y = self.field_y + (pap.FIELD_HEIGHT - 1 - child_pos.y) * CELL_SIZE
             rect = pygame.Rect(pixel_x, pixel_y, CELL_SIZE, CELL_SIZE)
             pygame.draw.rect(self.screen, color, rect)
             pygame.draw.rect(self.screen, (255, 255, 255), rect, 3)  # 白い枠
