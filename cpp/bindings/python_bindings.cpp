@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 
@@ -12,6 +13,9 @@
 #include "core/chain_system.h"
 #include "core/chain_detector.h"
 #include "core/score_calculator.h"
+#include "ai/ai_base.h"
+#include "ai/ai_manager.h"
+#include "ai/random_ai.h"
 
 namespace py = pybind11;
 
@@ -300,6 +304,106 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         .def("is_game_finished", &puyo::GameManager::is_game_finished)
         .def("get_winner", &puyo::GameManager::get_winner)
         .def("get_game_status", &puyo::GameManager::get_game_status);
+    
+    // AI関連の名前空間
+    py::module ai_module = m.def_submodule("ai", "AI system");
+    
+    // AIParameters型（std::map<string, string>のエイリアス）
+    py::class_<puyo::ai::AIParameters>(ai_module, "AIParameters")
+        .def(py::init<>())
+        .def("__getitem__", [](const puyo::ai::AIParameters& params, const std::string& key) {
+            auto it = params.find(key);
+            if (it == params.end()) {
+                throw py::key_error(key);
+            }
+            return it->second;
+        })
+        .def("__setitem__", [](puyo::ai::AIParameters& params, const std::string& key, const std::string& value) {
+            params[key] = value;
+        })
+        .def("__contains__", [](const puyo::ai::AIParameters& params, const std::string& key) {
+            return params.find(key) != params.end();
+        })
+        .def("keys", [](const puyo::ai::AIParameters& params) {
+            std::vector<std::string> keys;
+            for (const auto& pair : params) {
+                keys.push_back(pair.first);
+            }
+            return keys;
+        })
+        .def("__len__", [](const puyo::ai::AIParameters& params) {
+            return params.size();
+        });
+    
+    // GameState構造体
+    py::class_<puyo::ai::GameState>(ai_module, "GameState")
+        .def(py::init<>())
+        .def_readwrite("player_id", &puyo::ai::GameState::player_id)
+        .def_readwrite("turn_count", &puyo::ai::GameState::turn_count)
+        .def_readwrite("is_versus_mode", &puyo::ai::GameState::is_versus_mode)
+        .def_readwrite("current_pair", &puyo::ai::GameState::current_pair)
+        .def("get_own_field", [](const puyo::ai::GameState& state) {
+            return state.own_field;
+        }, py::return_value_policy::reference_internal)
+        .def("get_opponent_field", [](const puyo::ai::GameState& state) {
+            return state.opponent_field;
+        }, py::return_value_policy::reference_internal);
+    
+    // AIDecision構造体
+    py::class_<puyo::ai::AIDecision>(ai_module, "AIDecision")
+        .def(py::init<>())
+        .def(py::init<puyo::MoveCommand, double, const std::string&>())
+        .def_readwrite("command", &puyo::ai::AIDecision::command)
+        .def_readwrite("confidence", &puyo::ai::AIDecision::confidence)
+        .def_readwrite("reason", &puyo::ai::AIDecision::reason);
+    
+    // AIBase基底クラス
+    py::class_<puyo::ai::AIBase>(ai_module, "AIBase")
+        .def("get_name", &puyo::ai::AIBase::get_name, py::return_value_policy::reference)
+        .def("is_initialized", &puyo::ai::AIBase::is_initialized)
+        .def("set_parameter", &puyo::ai::AIBase::set_parameter)
+        .def("get_parameter", &puyo::ai::AIBase::get_parameter, py::arg("key"), py::arg("default_value") = "")
+        .def("get_all_parameters", &puyo::ai::AIBase::get_all_parameters, py::return_value_policy::reference)
+        .def("initialize", &puyo::ai::AIBase::initialize)
+        .def("shutdown", &puyo::ai::AIBase::shutdown)
+        .def("think", &puyo::ai::AIBase::think)
+        .def("get_think_time_ms", &puyo::ai::AIBase::get_think_time_ms)
+        .def("get_debug_info", &puyo::ai::AIBase::get_debug_info)
+        .def("get_type", &puyo::ai::AIBase::get_type)
+        .def("get_version", &puyo::ai::AIBase::get_version);
+    
+    // RandomAI
+    py::class_<puyo::ai::RandomAI, puyo::ai::AIBase>(ai_module, "RandomAI")
+        .def(py::init<const puyo::ai::AIParameters&>(), py::arg("params") = puyo::ai::AIParameters{});
+    
+    // AIInfo構造体
+    py::class_<puyo::ai::AIInfo>(ai_module, "AIInfo")
+        .def_readwrite("name", &puyo::ai::AIInfo::name)
+        .def_readwrite("type", &puyo::ai::AIInfo::type)
+        .def_readwrite("version", &puyo::ai::AIInfo::version)
+        .def_readwrite("description", &puyo::ai::AIInfo::description);
+    
+    // AIManager
+    py::class_<puyo::ai::AIManager>(ai_module, "AIManager")
+        .def(py::init<>())
+        .def("create_ai", [](puyo::ai::AIManager& manager, const std::string& name, const puyo::ai::AIParameters& params) {
+            return manager.create_ai(name, params);
+        }, py::arg("name"), py::arg("params") = puyo::ai::AIParameters{})
+        .def("get_registered_ai_names", &puyo::ai::AIManager::get_registered_ai_names)
+        .def("get_ai_info", [](const puyo::ai::AIManager& manager, const std::string& name) {
+            puyo::ai::AIInfo info("", "", "", "", nullptr);
+            bool found = manager.get_ai_info(name, info);
+            if (!found) {
+                throw py::value_error("AI not found: " + name);
+            }
+            return info;
+        })
+        .def("get_ai_count", &puyo::ai::AIManager::get_ai_count)
+        .def("get_status", &puyo::ai::AIManager::get_status);
+    
+    // グローバルAIマネージャーへのアクセス
+    ai_module.def("get_global_ai_manager", &puyo::ai::GlobalAIManager::get_instance, 
+                  py::return_value_policy::reference);
     
     // 定数をエクスポート
     m.attr("FIELD_WIDTH") = puyo::FIELD_WIDTH;
