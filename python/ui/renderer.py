@@ -289,6 +289,29 @@ class PuyoRenderer:
         y += 20
         self.draw_text("ESC - Quit", x, y)
     
+    def draw_ai_info(self, ai_info):
+        """AI情報表示"""
+        if not ai_info:
+            return
+        
+        x = self.ui_x + 10
+        y = 400
+        
+        self.draw_text("AI Mode", x, y, color=(100, 255, 100))
+        y += 25
+        
+        if 'ai_name' in ai_info:
+            self.draw_text(f"AI: {ai_info['ai_name']}", x, y)
+            y += 20
+        
+        if 'last_command' in ai_info:
+            self.draw_text(f"Last: {ai_info['last_command']}", x, y)
+            y += 20
+        
+        if 'think_time' in ai_info:
+            self.draw_text(f"Think: {ai_info['think_time']:.1f}ms", x, y)
+            y += 20
+    
     def update_display(self):
         """画面更新"""
         pygame.display.flip()
@@ -309,7 +332,7 @@ class GameVisualizer:
         self.renderer = PuyoRenderer()
         self.running = True
     
-    def render_game(self, game_manager, current_pair=None, highlight_pair=False, chain_count=0, last_score_details=None):
+    def render_game(self, game_manager, current_pair=None, highlight_pair=False, chain_count=0, last_score_details=None, ai_mode=False, ai_info=None):
         """ゲーム全体の描画"""
         self.renderer.clear_screen()
         
@@ -326,6 +349,10 @@ class GameVisualizer:
         # 連鎖数表示
         if chain_count > 0:
             self.renderer.draw_chain_display(chain_count)
+        
+        # AI情報表示
+        if ai_mode and ai_info:
+            self.renderer.draw_ai_info(ai_info)
         
         # ゲーム情報描画
         self.renderer.draw_game_info(game_manager)

@@ -7,56 +7,20 @@
 import pygame
 import sys
 import os
-import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import puyo_ai_platform as pap
 from python.ui.renderer import GameVisualizer
+from python.ui.player_controller import HumanPlayerController, AIPlayerController
 
-class InputManager:
-    """キーボード入力管理クラス"""
-    
-    def __init__(self):
-        self.key_mapping = {
-            pygame.K_a: pap.MoveCommand.LEFT,
-            pygame.K_d: pap.MoveCommand.RIGHT,
-            pygame.K_DOWN: pap.MoveCommand.ROTATE_CCW,   # ↓ 反時計回り
-            pygame.K_RIGHT: pap.MoveCommand.ROTATE_CW,   # → 時計回り
-            pygame.K_w: pap.MoveCommand.DROP,            # W ドロップ
-        }
-        
-        # キーリピート防止
-        self.last_key_time = {}
-        self.key_repeat_delay = 0.15  # 150ms
-    
-    def get_move_command(self, key):
-        """キー入力をMoveCommandに変換"""
-        current_time = time.time()
-        
-        # キーリピート防止チェック
-        if key in self.last_key_time:
-            if current_time - self.last_key_time[key] < self.key_repeat_delay:
-                return None
-        
-        self.last_key_time[key] = current_time
-        
-        return self.key_mapping.get(key, None)
-    
-    def is_quit_key(self, key):
-        """終了キーかチェック"""
-        return key == pygame.K_ESCAPE
-    
-    def is_reset_key(self, key):
-        """リセットキーかチェック"""
-        return key == pygame.K_r
 
 class GameController:
     """メインゲーム制御クラス"""
     
-    def __init__(self, game_mode=pap.GameMode.TOKOTON):
+    def __init__(self, game_mode=pap.GameMode.TOKOTON, player_controller=None):
         self.game_manager = pap.GameManager(game_mode)
         self.visualizer = GameVisualizer()
-        self.input_manager = InputManager()
+        self.player_controller = player_controller  # PlayerController instance
         
         # 操作中のぷよペア
         self.current_pair = None
@@ -73,16 +37,26 @@ class GameController:
         # デバッグフラグ
         self.debug_mode = True
         
+        # AI制御関連
+        self.turn_count = 0
+        self.ai_mode = False
+        
     def setup_game(self, player_names=None):
         """ゲーム初期設定"""
         if player_names is None:
             player_names = ["Player1"]
         
+        # PlayerControllerタイプに基づいてPlayerTypeを決定
+        player_type = pap.PlayerType.HUMAN
+        if self.player_controller and isinstance(self.player_controller, AIPlayerController):
+            player_type = pap.PlayerType.AI
+            self.ai_mode = True
+        
         # プレイヤー追加
-        for i, name in enumerate(player_names):
-            self.game_manager.add_player(name, pap.PlayerType.HUMAN)
+        for name in player_names:
+            self.game_manager.add_player(name, player_type)
             if self.debug_mode:
-                print(f"Added player: {name}")
+                print(f"Added player: {name} (Type: {player_type})")
         
         # 入力コールバック設定
         self.game_manager.set_input_callback(self._input_callback)
@@ -106,7 +80,7 @@ class GameController:
         if self.debug_mode:
             print("Game setup completed")
     
-    def _input_callback(self, player_id):
+    def _input_callback(self, _player_id):
         """ゲームマネージャーからのコールバック"""
         # 現在は手動制御のため、常にNONEを返す
         return pap.MoveCommand.NONE
@@ -234,17 +208,17 @@ class GameController:
     
     def handle_input(self, key):
         """キー入力処理"""
-        if self.input_manager.is_quit_key(key):
+        # 共通キーの処理
+        if key == pygame.K_ESCAPE:
             return False  # 終了
         
-        if self.input_manager.is_reset_key(key):
+        if key == pygame.K_r:
             self.reset_game()
             return True
         
-        # 移動コマンド処理
-        command = self.input_manager.get_move_command(key)
-        if command:
-            self._try_move_pair(command)
+        # PlayerControllerに入力を委譲
+        if self.player_controller and isinstance(self.player_controller, HumanPlayerController):
+            self.player_controller.set_key_input(key)
         
         return True
     
@@ -255,6 +229,11 @@ class GameController:
         # スコア詳細もリセット
         self.last_score_details = None
         self.last_chain_count = 0
+        self.turn_count = 0
+        
+        # PlayerControllerもリセット
+        if self.player_controller:
+            self.player_controller.reset()
         
         # NextGeneratorを再初期化
         if self.next_generator:
@@ -274,12 +253,32 @@ class GameController:
                 print("Game Over!")
             return False
         
+        # PlayerController経由でコマンド取得と実行
+        self._process_player_input()
+        
         return True
     
     def render(self):
         """ゲーム描画"""
         highlight = not self.pair_placed
-        self.visualizer.render_game(self.game_manager, self.current_pair, highlight, self.last_chain_count, self.last_score_details)
+        
+        # AI情報の構築
+        ai_info = None
+        if self.ai_mode and self.player_controller:
+            ai_instance = getattr(self.player_controller, 'ai', None)
+            ai_name = 'Unknown AI'
+            if ai_instance and hasattr(ai_instance, 'get_name'):
+                ai_name = ai_instance.get_name()
+            
+            ai_info = {
+                'ai_name': ai_name,
+                'last_command': getattr(self.player_controller, 'last_command', 'None'),
+                'think_time': getattr(self.player_controller, 'last_think_time', 0.0) * 1000  # ms変換
+            }
+        
+        self.visualizer.render_game(self.game_manager, self.current_pair, highlight, 
+                                   self.last_chain_count, self.last_score_details, 
+                                   self.ai_mode, ai_info)
     
     def handle_events(self):
         """イベント処理"""
@@ -292,6 +291,34 @@ class GameController:
         """実行中判定"""
         return self.visualizer.is_running()
     
+    def _process_player_input(self):
+        """PlayerController経由で入力処理"""
+        if not self.player_controller or self.pair_placed:
+            return
+        
+        # ゲーム状態を構築してPlayerControllerに渡す
+        game_state = self._build_game_state()
+        
+        # PlayerControllerからコマンド取得
+        command = self.player_controller.get_next_command(game_state)
+        
+        if command:
+            self._try_move_pair(command)
+    
+    def _build_game_state(self):
+        """PlayerController用のゲーム状態情報を構築"""
+        current_player_id = self.game_manager.get_current_player()
+        current_player = self.game_manager.get_player(current_player_id)
+        
+        return {
+            'current_player': current_player,
+            'current_pair': self.current_pair,
+            'turn_count': self.turn_count,
+            'pair_placed': self.pair_placed,
+            'last_chain_count': self.last_chain_count,
+            'last_score_details': self.last_score_details
+        }
+    
     def quit(self):
         """終了処理"""
         self.visualizer.quit()
@@ -299,12 +326,34 @@ class GameController:
 def main():
     """メイン実行関数"""
     print("Puyo Puyo UI Demo Starting...")
+    print("Select mode: [1] Human Player [2] AI Player")
+    
+    # プレイヤータイプ選択
+    try:
+        choice = input("Enter choice (1 or 2): ").strip()
+        if choice == "2":
+            # AI制御モード
+            print("AI Mode Selected")
+            # RandomAIを作成
+            ai_manager = pap.ai.AIManager()
+            # RandomAIは既に登録済みなので直接作成
+            ai_instance = ai_manager.create_ai("random")
+            
+            player_controller = AIPlayerController(ai_instance, "AI Player")
+            print("Game loop started. AI will play automatically. R to reset, ESC to quit.")
+        else:
+            # 人間制御モード（デフォルト）
+            print("Human Mode Selected")
+            player_controller = HumanPlayerController("Human Player")
+            print("Game loop started. Use A/D to move, ↓/→ to rotate, W to drop, R to reset, ESC to quit.")
+    except (EOFError, KeyboardInterrupt):
+        print("Human Mode Selected (default)")
+        player_controller = HumanPlayerController("Human Player")
+        print("Game loop started. Use A/D to move, ↓/→ to rotate, W to drop, R to reset, ESC to quit.")
     
     # ゲームコントローラー初期化
-    controller = GameController(pap.GameMode.TOKOTON)
-    controller.setup_game(["Human Player"])
-    
-    print("Game loop started. Use A/D to move, ↓/→ to rotate, W to drop, R to reset, ESC to quit.")
+    controller = GameController(pap.GameMode.TOKOTON, player_controller)
+    controller.setup_game([player_controller.get_player_name()])
     
     # メインループ
     running = True
