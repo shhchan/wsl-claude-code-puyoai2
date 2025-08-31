@@ -40,6 +40,60 @@ bool Field::is_row14_used(int column) const {
     return column >= 0 && column < FIELD_WIDTH && row14_used_[column];
 }
 
+bool Field::can_place(int x, int r) const {
+    // サンプルコードと同等の厳密なアルゴリズム
+    // ぷよの高さ情報を取得
+    uint8_t heights[6] = {};
+    for (int i = 0; i < 6; ++i) {
+        heights[i] = 0;
+        for (int y = 0; y < FIELD_HEIGHT; ++y) {
+            if (get_puyo(Position(i, y)) != PuyoColor::EMPTY) {
+                heights[i] = y + 1;  // y座標+1が実際の高さ
+            } else {
+                break;
+            }
+        }
+    }
+    // 14段目の情報（bit列）
+    uint8_t row14 = 0;
+    for (int i = 0; i < 6; ++i) {
+        if (is_row14_used(i)) row14 |= (1 << i);
+    }
+    // 回転方向のオフセット
+    static const int dx[4] = {0, 1, 0, -1}; // UP, RIGHT, DOWN, LEFT
+    static const int dy[4] = {1, 0, -1, 0};
+    // 0:UP, 1:RIGHT, 2:DOWN, 3:LEFT
+    int dir = r;
+    // 軸ぷよが14段目
+    if (heights[x] + (dir == 2) > 12) return false;
+    int child_x = x + dx[dir];
+    if (child_x < 0 || child_x >= 6) return false;
+    int child_y = heights[child_x] + (dir == 0);
+    if (child_y == 13 && ((row14 >> child_x) & 1)) return false;
+    // チェックリスト
+    static const int check[6][4] = {
+        {1, 0, -1, -1}, {1, -1, -1, -1}, {-1, -1, -1, -1}, {3, -1, -1, -1}, {3, 4, -1, -1}, {3, 4, 5, -1}
+    };
+    static const int check_12[6][6] = {
+        {1, 2, 3, 4, 5, -1}, {2, 3, 4, 5, -1, -1}, {-1, -1, -1, -1, -1, -1}, {2, 1, 0, -1, -1, -1}, {3, 2, 1, 0, -1, -1}, {4, 3, 2, 1, 0, -1}
+    };
+    int check_x = x;
+    if (dir == 1 && x >= 2) check_x += 1;
+    else if (dir == 3 && x <= 2) check_x -= 1;
+    int height_12_idx = -1;
+    for (int i = 0; check[check_x][i] != -1; ++i) {
+        if (heights[check[check_x][i]] > 12) return false;
+        if (heights[check[check_x][i]] == 12 && height_12_idx == -1) height_12_idx = check[check_x][i];
+    }
+    if (height_12_idx == -1) return true;
+    if (heights[1] > 11 && heights[3] > 11) return true;
+    for (int i = 0; check_12[height_12_idx][i] != -1; ++i) {
+        if (heights[check_12[height_12_idx][i]] > 11) break;
+        if (heights[check_12[height_12_idx][i]] == 11) return true;
+    }
+    return false;
+}
+
 bool Field::can_place_puyo_pair(const PuyoPair& pair) const {
     Position axis_pos = pair.pos;
     Position child_pos = pair.get_child_position();

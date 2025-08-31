@@ -26,6 +26,7 @@ public:
     bool is_row14_used(int column) const;
     
     // 設置可能性判定
+    bool can_place(int x, int r) const;  // 新しい厳密なアルゴリズム
     bool can_place_puyo_pair(const PuyoPair& pair) const;
     
     // ぷよ設置

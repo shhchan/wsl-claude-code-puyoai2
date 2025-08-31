@@ -115,7 +115,9 @@ bool PuyoController::perform_rotation(bool clockwise) {
                     }
                     break;
                 case Rotation::LEFT:  // 左から時計回り（上へ）
-                    // 上への回転では通常キックは発生しない
+                    if ((field_ && child_pos.y < FIELD_HEIGHT && child_pos.y >= 0 && field_->get_puyo(child_pos) != PuyoColor::EMPTY)) {
+                        kick_offset = {0, -1};  // 上（14段目）にぷよがある場合: y方向に-1
+                    }
                     break;
             }
         } else {
@@ -139,7 +141,9 @@ bool PuyoController::perform_rotation(bool clockwise) {
                     }
                     break;
                 case Rotation::RIGHT: // 右から反時計回り（上へ）
-                    // 上への回転では通常キックは発生しない
+                    if ((field_ && child_pos.y < FIELD_HEIGHT && child_pos.y >= 0 && field_->get_puyo(child_pos) != PuyoColor::EMPTY)) {
+                        kick_offset = {0, -1};  // 上（14段目）にぷよがある場合: y方向に-1
+                    }
                     break;
             }
         }
