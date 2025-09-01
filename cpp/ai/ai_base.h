@@ -8,6 +8,8 @@
 #include <memory>
 #include <map>
 #include <functional>
+#include <vector>
+#include <set>
 
 namespace puyo {
 namespace ai {
@@ -40,14 +42,40 @@ struct GameState {
 
 // AI思考結果
 struct AIDecision {
-    MoveCommand command;
-    double confidence;  // 行動の確信度（0.0-1.0）
-    std::string reason; // 判断理由（デバッグ用）
+    int x;                                      // 軸ぷよの列（0-5）
+    int r;                                      // 回転状態（0:UP, 1:RIGHT, 2:DOWN, 3:LEFT）
+    std::vector<MoveCommand> move_commands;     // (x, r)へ到達するまでの操作コマンドリスト
+    double confidence;                          // 行動の確信度（0.0-1.0）
+    std::string reason;                         // 判断理由（デバッグ用）
     
-    AIDecision(MoveCommand cmd = MoveCommand::NONE, 
+    AIDecision(int x_pos = -1, int rotation = 0, 
+               const std::vector<MoveCommand>& commands = {},
                double conf = 0.0, 
                const std::string& r = "")
-        : command(cmd), confidence(conf), reason(r) {}
+        : x(x_pos), r(rotation), move_commands(commands), confidence(conf), reason(r) {}
+};
+
+// MoveCommand生成ヘルパークラス
+class MoveCommandGenerator {
+public:
+    // (x, r)の位置へ到達するMoveCommandリストを生成
+    static std::vector<MoveCommand> generate_move_commands(const Field& field, int target_x, int target_r);
+    
+private:
+    // 基本アルゴリズム：12段制約なし
+    static std::vector<MoveCommand> generate_basic_commands(int target_x, int target_r);
+    
+    // 高度なアルゴリズム：12段制約対応
+    static std::vector<MoveCommand> generate_advanced_commands(const Field& field, int target_x, int target_r);
+    
+    // 到達可能な列の算出
+    static std::set<int> calculate_reachable_columns(const Field& field);
+    
+    // 11段列の検出
+    static std::vector<int> find_11_height_columns(const Field& field, const std::set<int>& reachable);
+    
+    // 回転コマンド生成
+    static std::vector<MoveCommand> generate_rotation_commands(int current_rotation, int target_rotation);
 };
 
 // AI基底クラス

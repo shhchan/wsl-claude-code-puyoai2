@@ -352,8 +352,12 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
     // AIDecision構造体
     py::class_<puyo::ai::AIDecision>(ai_module, "AIDecision")
         .def(py::init<>())
-        .def(py::init<puyo::MoveCommand, double, const std::string&>())
-        .def_readwrite("command", &puyo::ai::AIDecision::command)
+        .def(py::init<int, int, const std::vector<puyo::MoveCommand>&, double, const std::string&>(),
+             py::arg("x_pos") = -1, py::arg("rotation") = 0, py::arg("commands") = std::vector<puyo::MoveCommand>(),
+             py::arg("conf") = 0.0, py::arg("reason") = "")
+        .def_readwrite("x", &puyo::ai::AIDecision::x)
+        .def_readwrite("r", &puyo::ai::AIDecision::r)
+        .def_readwrite("move_commands", &puyo::ai::AIDecision::move_commands)
         .def_readwrite("confidence", &puyo::ai::AIDecision::confidence)
         .def_readwrite("reason", &puyo::ai::AIDecision::reason);
     
