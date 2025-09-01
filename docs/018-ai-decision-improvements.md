@@ -118,12 +118,37 @@ AI の意思決定システムとエミュレータ操作に関する以下の3�
 5. 既存の AI システムとの互換性が保たれていること
 6. 全てのテストケースが合格すること
 
+## 追加対応項目（UI統合）
+
+### 4. python/ui/game_controller.py の AI Mode 対応
+
+RandomAIの変更により、UIのAI Modeが動作しなくなった問題を修正する。
+
+**問題点:**
+- AIDecision構造体の変更により、`decision.command`が存在しなくなった
+- 新しいAIDecisionは`move_commands`リストを持つため、UI側で順次実行する必要がある
+
+**対応内容:**
+- AIPlayerControllerでmove_commandsを順次実行するキュー機能を実装
+- game_controller.pyでAI Modeが正常動作するように修正
+
+## 追加タスク一覧
+
+- [ ] python/ui/player_controller.py の AIPlayerController 修正
+  - [ ] move_commands キュー実装
+  - [ ] 順次コマンド実行機能の追加
+  - [ ] エラーハンドリングの改善
+- [ ] AI Mode での動作確認テスト
+  - [ ] RandomAI による自動プレイ動作確認
+  - [ ] UI表示の正常性確認
+
 ## 備考
 
 - アルゴリズムが複雑なため、段階的な実装とテストを推奨
 - 12段制約の対応は特に慎重に実装・テストすること
 - パフォーマンスを考慮し、効率的な実装を心がけること
 - 既存のAIシステムとの統合時は互換性に注意すること
+- UI統合では新しいAIDecision構造体との適切な連携が必要
 
 ## 参考情報
 
