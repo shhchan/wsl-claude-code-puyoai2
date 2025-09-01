@@ -158,6 +158,14 @@ class AIPlayerController(PlayerController):
         """AIから次のコマンドを取得"""
         current_time = time.time()
         
+        # キューにコマンドがある場合は順次実行
+        if self.command_queue:
+            command = self.command_queue.pop(0)
+            self.last_command = str(command)
+            if self.debug_mode:
+                print(f"AI executing queued command: {command} (remaining: {len(self.command_queue)})")
+            return command
+        
         # 思考時間間隔チェック
         if current_time - self.last_think_time < self.think_interval:
             return None
@@ -169,29 +177,58 @@ class AIPlayerController(PlayerController):
             ai_game_state = self._build_ai_game_state(game_state)
             
             # AI思考実行
+            think_start_time = time.time()
             decision = self.ai.think(ai_game_state)
+            think_duration = time.time() - think_start_time
             
-            if decision and hasattr(decision, 'command'):
+            # 新しいAIDecision構造体に対応
+            if decision and hasattr(decision, 'move_commands'):
+                # move_commandsリストをキューに追加
+                if hasattr(decision, 'move_commands') and decision.move_commands:
+                    self.command_queue = list(decision.move_commands)
+                    
+                    if self.debug_mode:
+                        print(f"AI decision: ({decision.x}, {decision.r}) with {len(decision.move_commands)} commands")
+                        if hasattr(decision, 'reason'):
+                            print(f"AI reason: {decision.reason}")
+                        print(f"AI think time: {think_duration*1000:.1f}ms")
+                        command_str = ' '.join([str(cmd).split('.')[-1] for cmd in decision.move_commands])
+                        print(f"Command sequence: {command_str}")
+                    
+                    # 最初のコマンドを返す
+                    if self.command_queue:
+                        command = self.command_queue.pop(0)
+                        self.last_command = str(command)
+                        if self.debug_mode:
+                            print(f"AI executing first command: {command} (remaining: {len(self.command_queue)})")
+                        return command
+            
+            # 古いAIDecision構造体との後方互換性（エラー回避）
+            elif decision and hasattr(decision, 'command'):
                 command = decision.command
                 
                 if self.debug_mode:
-                    print(f"AI decision: {command}")
+                    print(f"AI decision (legacy): {command}")
                     if hasattr(decision, 'reason'):
                         print(f"AI reason: {decision.reason}")
                 
-                # 最後のコマンドを記録
                 self.last_command = str(command)
                 return command
         
         except Exception as e:
             if self.debug_mode:
                 print(f"AI think error: {e}")
+                import traceback
+                traceback.print_exc()
+            
             # エラー時はランダムコマンドを返す
             import random
             commands = [pap.MoveCommand.LEFT, pap.MoveCommand.RIGHT, 
                        pap.MoveCommand.ROTATE_CW, pap.MoveCommand.ROTATE_CCW, 
                        pap.MoveCommand.DROP]
-            return random.choice(commands)
+            command = random.choice(commands)
+            self.last_command = f"ERROR_FALLBACK_{command}"
+            return command
         
         return None
     
@@ -213,32 +250,35 @@ class AIPlayerController(PlayerController):
     
     def _build_ai_game_state(self, game_state: Dict[str, Any]):
         """GameControllerの情報からAIのGameStateを構築"""
-        # 基本情報を設定
-        player_id = 0  # 単体プレイなので固定
-        turn_count = game_state.get('turn_count', 0)
-        is_versus_mode = False
+        # C++のGameStateを構築
+        ai_state = pap.ai.GameState()
         
-        # GameStateを構築（C++側のコンストラクタを使用）
-        if 'current_player' in game_state:
+        # 基本情報を設定
+        ai_state.player_id = 0  # 単体プレイなので固定
+        ai_state.turn_count = game_state.get('turn_count', 0)
+        ai_state.is_versus_mode = False
+        
+        # フィールド情報を設定
+        if 'current_player' in game_state and game_state['current_player']:
             player = game_state['current_player']
-            own_field = player.get_field()
-            opponent_field = None  # 単体プレイなのでNone
-            
-            # C++のGameStateコンストラクタ引数に合わせる
-            ai_state = pap.ai.GameState()
-            ai_state.player_id = player_id
-            ai_state.turn_count = turn_count
-            ai_state.is_versus_mode = is_versus_mode
-            
-            if 'current_pair' in game_state:
-                ai_state.current_pair = game_state['current_pair']
-            
-            # フィールド情報は必要に応じて個別に設定
-            # （C++側の実装により異なる）
-        else:
-            ai_state = pap.ai.GameState()
-            ai_state.player_id = player_id
-            ai_state.turn_count = turn_count
-            ai_state.is_versus_mode = is_versus_mode
+            # own_fieldを設定 - RandomAIがフィールド情報を使用するため
+            try:
+                # 新しく追加したset_own_fieldメソッドを使用
+                field = player.get_field()
+                ai_state.set_own_field(field)
+                if self.debug_mode:
+                    print(f"AI GameState: own_field set successfully via set_own_field()")
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"Warning: Failed to set own_field: {e}")
+                    import traceback
+                    traceback.print_exc()
+        
+        # 現在のぷよペア情報を設定
+        if 'current_pair' in game_state and game_state['current_pair']:
+            ai_state.current_pair = game_state['current_pair']
+            if self.debug_mode:
+                pair = game_state['current_pair']
+                print(f"AI GameState: current_pair set ({pair.axis} + {pair.child})")
         
         return ai_state

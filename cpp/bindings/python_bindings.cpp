@@ -347,7 +347,13 @@ PYBIND11_MODULE(puyo_ai_platform, m) {
         }, py::return_value_policy::reference_internal)
         .def("get_opponent_field", [](const puyo::ai::GameState& state) {
             return state.opponent_field;
-        }, py::return_value_policy::reference_internal);
+        }, py::return_value_policy::reference_internal)
+        .def("set_own_field", [](puyo::ai::GameState& state, const puyo::Field* field) {
+            state.own_field = field;
+        }, py::arg("field"))
+        .def("set_opponent_field", [](puyo::ai::GameState& state, const puyo::Field* field) {
+            state.opponent_field = field;
+        }, py::arg("field"));
     
     // AIDecision構造体
     py::class_<puyo::ai::AIDecision>(ai_module, "AIDecision")
