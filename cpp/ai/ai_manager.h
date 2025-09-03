@@ -3,6 +3,7 @@
 #include "ai_base.h"
 #include "random_ai.h"
 #include "chain_search_ai.h"
+#include "rl_player_ai.h"
 #include <unordered_map>
 #include <memory>
 #include <vector>
@@ -128,6 +129,17 @@ private:
             "Chain search AI using minimax algorithm",
             [](const AIParameters& params) -> std::unique_ptr<AIBase> {
                 return std::make_unique<ChainSearchAI>(params);
+            }
+        );
+        
+        // RLPlayerAI登録
+        register_ai(
+            "rl_player",
+            "RLPlayer",
+            "1.0",
+            "Reinforcement Learning AI using Q-Learning",
+            [](const AIParameters& params) -> std::unique_ptr<AIBase> {
+                return std::make_unique<RLPlayerAI>(params);
             }
         );
         
