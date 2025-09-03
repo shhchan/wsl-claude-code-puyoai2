@@ -4,6 +4,7 @@
 #include "random_ai.h"
 #include "chain_search_ai.h"
 #include "rl_player_ai.h"
+#include "human_learning_ai.h"
 #include <unordered_map>
 #include <memory>
 #include <vector>
@@ -140,6 +141,17 @@ private:
             "Reinforcement Learning AI using Q-Learning",
             [](const AIParameters& params) -> std::unique_ptr<AIBase> {
                 return std::make_unique<RLPlayerAI>(params);
+            }
+        );
+        
+        // HumanLearningAI登録
+        register_ai(
+            "human_learning",
+            "HumanLearning",
+            "1.0",
+            "Human behavior learning and imitation AI",
+            [](const AIParameters& params) -> std::unique_ptr<AIBase> {
+                return std::make_unique<HumanLearningAI>(params);
             }
         );
         

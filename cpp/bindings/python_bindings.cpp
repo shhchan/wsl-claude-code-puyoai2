@@ -18,6 +18,7 @@
 #include "ai/random_ai.h"
 #include "ai/chain_search_ai.h"
 #include "ai/rl_player_ai.h"
+#include "ai/human_learning_ai.h"
 
 namespace py = pybind11;
 
