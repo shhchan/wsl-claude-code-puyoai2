@@ -2,6 +2,7 @@
 
 #include "ai_base.h"
 #include "random_ai.h"
+#include "chain_search_ai.h"
 #include <unordered_map>
 #include <memory>
 #include <vector>
@@ -116,6 +117,17 @@ private:
             "Random action AI for testing",
             [](const AIParameters& params) -> std::unique_ptr<AIBase> {
                 return std::make_unique<RandomAI>(params);
+            }
+        );
+        
+        // ChainSearchAI登録
+        register_ai(
+            "chain_search",
+            "ChainSearch",
+            "1.0",
+            "Chain search AI using minimax algorithm",
+            [](const AIParameters& params) -> std::unique_ptr<AIBase> {
+                return std::make_unique<ChainSearchAI>(params);
             }
         );
         

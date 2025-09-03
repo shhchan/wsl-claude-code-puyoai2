@@ -334,13 +334,39 @@ def main():
         if choice == "2":
             # AI制御モード
             print("AI Mode Selected")
-            # RandomAIを作成
-            ai_manager = pap.ai.AIManager()
-            # RandomAIは既に登録済みなので直接作成
-            ai_instance = ai_manager.create_ai("random")
             
-            player_controller = AIPlayerController(ai_instance, "AI Player")
-            print("Game loop started. AI will play automatically. R to reset, ESC to quit.")
+            # 利用可能なAI一覧を表示
+            ai_manager = pap.ai.get_global_ai_manager()
+            ai_names = ai_manager.get_registered_ai_names()
+            
+            print("Available AIs:")
+            for i, ai_name in enumerate(ai_names):
+                print(f"  [{i+1}] {ai_name}")
+            
+            # AI選択
+            try:
+                ai_choice = input(f"Select AI (1-{len(ai_names)}): ").strip()
+                ai_index = int(ai_choice) - 1
+                
+                if 0 <= ai_index < len(ai_names):
+                    selected_ai_name = ai_names[ai_index]
+                    print(f"Selected AI: {selected_ai_name}")
+                    
+                    ai_instance = ai_manager.create_ai(selected_ai_name)
+                    if ai_instance is None:
+                        print("Failed to create AI, falling back to RandomAI")
+                        ai_instance = ai_manager.create_ai("random")
+                else:
+                    print("Invalid AI selection, using RandomAI")
+                    ai_instance = ai_manager.create_ai("random")
+                    selected_ai_name = "random"
+            except (ValueError, EOFError, KeyboardInterrupt):
+                print("Invalid input, using RandomAI")
+                ai_instance = ai_manager.create_ai("random")
+                selected_ai_name = "random"
+            
+            player_controller = AIPlayerController(ai_instance, f"{selected_ai_name} AI")
+            print(f"Game started with {selected_ai_name} AI. R to reset, ESC to quit.")
         else:
             # 人間制御モード（デフォルト）
             print("Human Mode Selected")

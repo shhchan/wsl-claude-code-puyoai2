@@ -16,6 +16,7 @@
 #include "ai/ai_base.h"
 #include "ai/ai_manager.h"
 #include "ai/random_ai.h"
+#include "ai/chain_search_ai.h"
 
 namespace py = pybind11;
 
