@@ -79,9 +79,11 @@ class InputManager:
         current_time = time.time()
         
         # キーリピート防止チェック
+        """
         if key_input in self.last_key_time:
             if current_time - self.last_key_time[key_input] < self.key_repeat_delay:
                 return None
+        """
         
         self.last_key_time[key_input] = current_time
         
@@ -167,9 +169,10 @@ class AIPlayerController(PlayerController):
             return command
         
         # 思考時間間隔チェック
+        """
         if current_time - self.last_think_time < self.think_interval:
             return None
-        
+        """
         self.last_think_time = current_time
         
         try:
