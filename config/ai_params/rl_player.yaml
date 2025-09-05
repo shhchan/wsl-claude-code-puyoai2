@@ -1,0 +1,72 @@
+# RLPlayerAI設定ファイル
+# 強化学習による連鎖構築AI
+
+# 基本学習パラメータ
+learning:
+  algorithm: "q_learning"        # 学習アルゴリズム
+  learning_rate: 0.001          # 学習率
+  discount_factor: 0.95         # 割引率
+  epsilon_start: 1.0            # 初期探索率
+  epsilon_end: 0.01             # 最終探索率
+  epsilon_decay: 0.995          # 探索率減衰
+  
+# 経験リプレイ
+experience_replay:
+  buffer_size: 10000            # バッファサイズ
+  batch_size: 32                # バッチサイズ
+  min_experiences: 1000         # 学習開始に必要な経験数
+  
+# 報酬関数設定
+rewards:
+  # 連鎖報酬
+  chain_rewards:
+    1: 5.0                      # 1連鎖
+    2: 15.0                     # 2連鎖
+    3: 50.0                     # 3連鎖
+    4: 100.0                    # 4連鎖
+    5: 200.0                    # 5連鎖以上
+    
+  # スコア報酬
+  score_multiplier: 0.001       # スコア×倍率
+  
+  # 中間報酬
+  puyo_placement: 0.1           # ぷよ配置基本報酬
+  color_grouping: 2.0           # 同色隣接ボーナス
+  chain_building: 5.0           # 連鎖構築進行
+  
+  # ペナルティ
+  game_over: -100.0             # ゲームオーバー
+  high_field: -5.0              # フィールド高すぎ
+  waste_move: -1.0              # 無駄手
+
+# ニューラルネットワーク構成
+network:
+  architecture: "dqn"           # アーキテクチャタイプ
+  hidden_layers: [128, 64, 32]  # 隠れ層ノード数
+  activation: "relu"            # 活性化関数
+  dropout_rate: 0.2             # ドロップアウト率
+  
+# 状態表現
+state_encoding:
+  field_encoding: "color_height"  # フィールドエンコード方式
+  include_next: true              # ネクスト情報含む
+  include_history: true           # 履歴情報含む
+  history_length: 3               # 履歴長
+  
+# モデル管理
+model_management:
+  save_interval: 100            # 保存間隔（エピソード）
+  checkpoint_dir: "models/rl_checkpoints"
+  best_model_path: "models/rl_best.pth"
+  
+# 性能評価
+evaluation:
+  eval_episodes: 10             # 評価エピソード数
+  eval_interval: 50             # 評価間隔
+  target_score: 10000           # 目標スコア
+  
+# デバッグ設定
+debug:
+  log_rewards: true             # 報酬ログ
+  log_q_values: false           # Q値ログ
+  save_game_replays: true       # ゲームリプレイ保存

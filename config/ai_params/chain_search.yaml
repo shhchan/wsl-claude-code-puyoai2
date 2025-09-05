@@ -1,0 +1,56 @@
+# ChainSearchAI設定ファイル
+# U字型連鎖構築を重視した評価関数パラメータ
+
+# 基本探索パラメータ
+search_depth: 4                 # 探索深度（1-7）
+think_time_limit: 400          # 思考時間制限（ms）
+
+# 評価関数の重み
+evaluation_weights:
+  # 連鎖関連
+  chain_potential: 15.0         # 連鎖ポテンシャル重視
+  chain_trigger: 25.0           # 連鎖発火可能性
+  next_compatibility: 8.0       # ネクストとの相性
+  
+  # 形状関連（U字型優先）
+  u_shape_bonus: 12.0          # U字型ボーナス
+  center_preference: 3.0        # 中央寄り
+  height_balance: 4.0           # 高さバランス
+  stability: 6.0                # 安定性
+  
+  # 色関連
+  color_grouping: 10.0          # 同色集約
+  color_balance: 2.0            # 色バランス
+  
+  # ペナルティ
+  height_penalty: -20.0         # 高すぎるペナルティ
+  gameover_penalty: -100.0      # ゲームオーバー回避
+
+# U字型評価の詳細設定
+u_shape_evaluation:
+  preferred_columns: [1, 2, 4, 5]  # U字の外側列
+  center_columns: [2, 3]           # U字の底部
+  ideal_height_diff: 3             # 理想的な高さ差
+  max_center_height: 8             # 中央部最大高さ
+
+# 連鎖構築戦略
+chain_strategy:
+  min_chain_target: 3           # 最小目標連鎖数
+  multi_color_chains: true      # 多色連鎖を考慮
+  chain_timing_threshold: 8     # 連鎖発火タイミング（高さ）
+  
+# 色戦略
+color_strategy:
+  active_colors: 4              # 使用色数
+  color_priorities:             # 色の優先度
+    red: 1.0
+    green: 1.0  
+    blue: 1.0
+    yellow: 1.0
+  avoid_single_puyo: true       # 単独ぷよ回避
+
+# デバッグ設定
+debug:
+  verbose_evaluation: false     # 詳細評価ログ
+  show_position_scores: false   # 位置スコア表示
+  log_chain_analysis: true      # 連鎖分析ログ

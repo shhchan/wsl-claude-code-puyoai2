@@ -1,24 +1,50 @@
 #pragma once
 
 #include "ai_base.h"
+#include "ai_utils.h"
 #include "core/field.h"
 #include <vector>
 #include <memory>
 #include <random>
 #include <map>
 #include <fstream>
+#include <deque>
+#include <chrono>
 
 namespace puyo {
 namespace ai {
 
-// 強化学習用の状態表現
+// 改良された強化学習用の状態表現
 struct RLState {
-    std::vector<int> field_state;  // フィールド状態のエンコーディング
+    std::vector<int> field_state;  // フィールド状態のエンコーディング（色+高さ情報）
     int current_colors[2];         // 現在のぷよペア色
+    std::vector<int> next_colors;  // ネクスト情報（最大4個）
+    int turn_count;                // ターン数
+    int last_chain_count;          // 最後の連鎖数
+    double field_stability;        // フィールド安定性スコア
     
-    RLState() : field_state(FIELD_WIDTH * FIELD_HEIGHT, 0) {
+    RLState() : field_state(FIELD_WIDTH * FIELD_HEIGHT, 0), next_colors(4, 0),
+               turn_count(0), last_chain_count(0), field_stability(0.0) {
         current_colors[0] = 0;
         current_colors[1] = 0;
+    }
+    
+    // 状態のハッシュ値計算（Q-table用）
+    std::string to_hash() const {
+        std::string hash_str = "";
+        // フィールド状態の簡略化（高さ情報のみ）
+        for (int x = 0; x < FIELD_WIDTH; ++x) {
+            int height = 0;
+            for (int y = 0; y < FIELD_HEIGHT; ++y) {
+                if (field_state[y * FIELD_WIDTH + x] != 0) {
+                    height = FIELD_HEIGHT - y;
+                    break;
+                }
+            }
+            hash_str += std::to_string(height) + ",";
+        }
+        hash_str += std::to_string(current_colors[0]) + "," + std::to_string(current_colors[1]);
+        return hash_str;
     }
 };
 
@@ -31,72 +57,165 @@ struct QEntry {
     QEntry(double q, int count) : q_value(q), visit_count(count) {}
 };
 
-// 経験データ
+// 改良された経験データ
 struct Experience {
     RLState state;
     std::pair<int, int> action;  // (x, r)
-    double reward;
+    double immediate_reward;     // 即座の報酬
+    double chain_bonus;          // 連鎖ボーナス
+    double total_reward;         // 総報酬
     RLState next_state;
     bool is_terminal;
+    long timestamp;              // タイムスタンプ
     
-    Experience(const RLState& s, const std::pair<int, int>& a, double r, 
-              const RLState& next_s, bool terminal)
-        : state(s), action(a), reward(r), next_state(next_s), is_terminal(terminal) {}
+    Experience(const RLState& s, const std::pair<int, int>& a, double immediate, 
+               double chain, const RLState& next_s, bool terminal)
+        : state(s), action(a), immediate_reward(immediate), chain_bonus(chain),
+          next_state(next_s), is_terminal(terminal) {
+        total_reward = immediate + chain;
+        timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+    }
 };
 
-// 強化学習AI（Q-Learning実装）
+// 改良された強化学習AI（高度なQ-Learning + 経験リプレイ）
 class RLPlayerAI : public AIBase {
 private:
-    // 学習パラメータ
-    double learning_rate_;
-    double discount_factor_;
-    double epsilon_;          // ε-greedy戦略のε
-    double epsilon_decay_;
-    double min_epsilon_;
+    // YAML設定から読み込む学習パラメータ
+    struct LearningConfig {
+        double learning_rate;
+        double discount_factor;
+        double epsilon_start;
+        double epsilon_end;
+        double epsilon_decay;
+        int buffer_size;
+        int batch_size;
+        int min_experiences;
+        
+        LearningConfig() : learning_rate(0.001), discount_factor(0.95),
+                          epsilon_start(1.0), epsilon_end(0.01), epsilon_decay(0.995),
+                          buffer_size(10000), batch_size(32), min_experiences(1000) {}
+    } config_;
     
-    // Q値テーブル
+    // 報酬設定
+    struct RewardConfig {
+        std::map<int, double> chain_rewards;
+        double score_multiplier;
+        double puyo_placement;
+        double color_grouping;
+        double chain_building;
+        double game_over;
+        double high_field;
+        double waste_move;
+        
+        RewardConfig() {
+            chain_rewards[1] = 5.0;
+            chain_rewards[2] = 15.0;
+            chain_rewards[3] = 50.0;
+            chain_rewards[4] = 100.0;
+            chain_rewards[5] = 200.0;
+            score_multiplier = 0.001;
+            puyo_placement = 0.1;
+            color_grouping = 2.0;
+            chain_building = 5.0;
+            game_over = -100.0;
+            high_field = -5.0;
+            waste_move = -1.0;
+        }
+    } rewards_;
+    
+    // 学習状態管理
+    double current_epsilon_;
+    int episode_count_;
+    RLState last_state_;
+    std::pair<int, int> last_action_;
+    bool learning_mode_;
+    
+    // Q値テーブル（改良版）
     std::map<std::string, std::map<std::pair<int, int>, QEntry>> q_table_;
     
-    // 経験リプレイ
-    std::vector<Experience> experience_buffer_;
-    int max_buffer_size_;
+    // 経験リプレイバッファ（循環バッファ）
+    std::deque<Experience> experience_buffer_;
     
     // ランダム生成器
     std::random_device rd_;
     std::mt19937 gen_;
     std::uniform_real_distribution<> uniform_dist_;
     
-    // 学習統計
-    int total_games_;
-    double total_reward_;
-    std::vector<double> reward_history_;
+    // 学習統計と性能監視
+    struct LearningStats {
+        int total_episodes;
+        double cumulative_reward;
+        std::vector<double> episode_rewards;
+        std::vector<int> episode_chains;
+        double best_episode_reward;
+        int best_chain_count;
+        
+        LearningStats() : total_episodes(0), cumulative_reward(0.0),
+                         best_episode_reward(-999999), best_chain_count(0) {}
+    } stats_;
     
-    // モデル保存関連
-    std::string model_file_path_;
+    // モデル管理
+    std::string model_save_path_;
+    std::string checkpoint_dir_;
+    int save_interval_;
     
 public:
     RLPlayerAI(const AIParameters& params = {}) 
-        : AIBase("RLPlayerAI"), gen_(rd_()), uniform_dist_(0.0, 1.0) {
+        : AIBase("RLPlayerAI"), gen_(rd_()), uniform_dist_(0.0, 1.0),
+          current_epsilon_(1.0), episode_count_(0), learning_mode_(true),
+          model_save_path_("models/rl_best.pth"), checkpoint_dir_("models/rl_checkpoints"),
+          save_interval_(100) {
         
         // パラメータの設定
         for (const auto& param : params) {
             set_parameter(param.first, param.second);
         }
         
-        // デフォルト学習パラメータ
-        learning_rate_ = std::stod(get_parameter("learning_rate", "0.1"));
-        discount_factor_ = std::stod(get_parameter("discount_factor", "0.9"));
-        epsilon_ = std::stod(get_parameter("epsilon", "0.3"));
-        epsilon_decay_ = std::stod(get_parameter("epsilon_decay", "0.995"));
-        min_epsilon_ = std::stod(get_parameter("min_epsilon", "0.01"));
-        max_buffer_size_ = std::stoi(get_parameter("buffer_size", "1000"));
+        // YAML設定の読み込み
+        load_configuration();
         
-        // 統計初期化
-        total_games_ = 0;
-        total_reward_ = 0.0;
+        // 初期化
+        current_epsilon_ = config_.epsilon_start;
+        last_action_ = {-1, -1};
+    }
+    
+    // YAML設定読み込み
+    void load_configuration() {
+        std::string config_path = "config/ai_params/rl_player.yaml";
+        auto yaml_config = ConfigLoader::load_config(config_path);
         
-        // モデルファイルパス
-        model_file_path_ = get_parameter("model_file", "rl_model.dat");
+        // 学習パラメータ
+        config_.learning_rate = ConfigLoader::get_double(yaml_config, "learning.learning_rate", 0.001);
+        config_.discount_factor = ConfigLoader::get_double(yaml_config, "learning.discount_factor", 0.95);
+        config_.epsilon_start = ConfigLoader::get_double(yaml_config, "learning.epsilon_start", 1.0);
+        config_.epsilon_end = ConfigLoader::get_double(yaml_config, "learning.epsilon_end", 0.01);
+        config_.epsilon_decay = ConfigLoader::get_double(yaml_config, "learning.epsilon_decay", 0.995);
+        
+        // 経験リプレイ
+        config_.buffer_size = ConfigLoader::get_int(yaml_config, "experience_replay.buffer_size", 10000);
+        config_.batch_size = ConfigLoader::get_int(yaml_config, "experience_replay.batch_size", 32);
+        config_.min_experiences = ConfigLoader::get_int(yaml_config, "experience_replay.min_experiences", 1000);
+        
+        // 報酬設定
+        rewards_.chain_rewards[1] = ConfigLoader::get_double(yaml_config, "rewards.chain_rewards.1", 5.0);
+        rewards_.chain_rewards[2] = ConfigLoader::get_double(yaml_config, "rewards.chain_rewards.2", 15.0);
+        rewards_.chain_rewards[3] = ConfigLoader::get_double(yaml_config, "rewards.chain_rewards.3", 50.0);
+        rewards_.chain_rewards[4] = ConfigLoader::get_double(yaml_config, "rewards.chain_rewards.4", 100.0);
+        rewards_.chain_rewards[5] = ConfigLoader::get_double(yaml_config, "rewards.chain_rewards.5", 200.0);
+        
+        rewards_.score_multiplier = ConfigLoader::get_double(yaml_config, "rewards.score_multiplier", 0.001);
+        rewards_.puyo_placement = ConfigLoader::get_double(yaml_config, "rewards.puyo_placement", 0.1);
+        rewards_.color_grouping = ConfigLoader::get_double(yaml_config, "rewards.color_grouping", 2.0);
+        rewards_.chain_building = ConfigLoader::get_double(yaml_config, "rewards.chain_building", 5.0);
+        rewards_.game_over = ConfigLoader::get_double(yaml_config, "rewards.game_over", -100.0);
+        rewards_.high_field = ConfigLoader::get_double(yaml_config, "rewards.high_field", -5.0);
+        rewards_.waste_move = ConfigLoader::get_double(yaml_config, "rewards.waste_move", -1.0);
+        
+        // モデル管理
+        save_interval_ = ConfigLoader::get_int(yaml_config, "model_management.save_interval", 100);
+        checkpoint_dir_ = ConfigLoader::get_string(yaml_config, "model_management.checkpoint_dir", "models/rl_checkpoints");
+        model_save_path_ = ConfigLoader::get_string(yaml_config, "model_management.best_model_path", "models/rl_best.pth");
     }
     
     bool initialize() override {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ai_base.h"
+#include "ai_utils.h"
 #include "core/field.h"
 #include <vector>
 #include <memory>
@@ -8,24 +9,61 @@
 #include <map>
 #include <fstream>
 #include <algorithm>
+#include <cmath>
 
 namespace puyo {
 namespace ai {
 
-// 人間のプレイデータ記録
+// 改良された人間プレイデータ記録
 struct HumanPlayData {
     std::vector<int> field_state;      // フィールド状態のエンコーディング
     int current_colors[2];             // 現在のぷよペア色
+    std::vector<int> next_colors;      // ネクスト情報
     std::pair<int, int> action;        // 選択した行動 (x, r)
     double confidence;                 // 人間の判断への信頼度
     int game_turn;                     // ゲーム内のターン数
+    int chain_context;                 // 連鎖文脈（0:構築中, 1:発火, 2:継続）
+    double field_stability;            // フィールド安定性スコア
+    int height_profile[FIELD_WIDTH];   // 各列の高さ
     
-    HumanPlayData() : field_state(FIELD_WIDTH * FIELD_HEIGHT, 0) {
+    HumanPlayData() : field_state(FIELD_WIDTH * FIELD_HEIGHT, 0), next_colors(4, 0) {
         current_colors[0] = 0;
         current_colors[1] = 0;
         action = {-1, -1};
         confidence = 1.0;
         game_turn = 0;
+        chain_context = 0;
+        field_stability = 0.0;
+        for (int i = 0; i < FIELD_WIDTH; ++i) height_profile[i] = 0;
+    }
+    
+    // フィールド状態の類似度計算
+    double calculate_field_similarity(const HumanPlayData& other) const {
+        double similarity = 0.0;
+        int total_comparisons = 0;
+        
+        // 高さプロファイルの類似度
+        double height_similarity = 0.0;
+        for (int i = 0; i < FIELD_WIDTH; ++i) {
+            int diff = std::abs(height_profile[i] - other.height_profile[i]);
+            height_similarity += std::max(0.0, 1.0 - diff / 5.0); // 5段差まで許容
+        }
+        height_similarity /= FIELD_WIDTH;
+        
+        // 色分布の類似度（簡易版）
+        double color_similarity = 0.0;
+        if (current_colors[0] == other.current_colors[0] && 
+            current_colors[1] == other.current_colors[1]) {
+            color_similarity = 1.0;
+        } else if (current_colors[0] == other.current_colors[1] &&
+                  current_colors[1] == other.current_colors[0]) {
+            color_similarity = 0.8; // 順序違いは許容
+        }
+        
+        // 総合類似度
+        similarity = height_similarity * 0.7 + color_similarity * 0.3;
+        
+        return similarity;
     }
 };
 
@@ -39,39 +77,79 @@ struct SituationSimilarity {
         : data_index(idx), similarity_score(score) {}
 };
 
-// 人間行動学習AI
+// 改良された人間行動学習AI
 class HumanLearningAI : public AIBase {
 private:
-    // 学習データベース
+    // YAML設定
+    struct LearningConfig {
+        std::string data_dir;
+        int min_games_required;
+        double quality_threshold;
+        int max_chain_filter;
+        double field_similarity_threshold;
+        double action_confidence_threshold;
+        double imitation_strength;
+        double randomness_factor;
+        double confidence_bonus;
+        
+        LearningConfig() : data_dir("data/human_play"), min_games_required(100),
+                          quality_threshold(0.7), max_chain_filter(3),
+                          field_similarity_threshold(0.8), action_confidence_threshold(0.6),
+                          imitation_strength(0.8), randomness_factor(0.1), confidence_bonus(0.1) {}
+    } config_;
+    
+    // 重み設定
+    struct WeightFactors {
+        double field_structure;
+        double color_distribution;
+        double height_profile;
+        double next_compatibility;
+        
+        WeightFactors() : field_structure(0.4), color_distribution(0.3),
+                         height_profile(0.2), next_compatibility(0.1) {}
+    } weights_;
+    
+    // 学習データベース（改良版）
     std::vector<HumanPlayData> learning_database_;
+    std::map<std::string, std::vector<int>> pattern_clusters_;  // パターンクラスタリング
     
-    // 類似度計算パラメータ
-    double field_weight_;              // フィールド状態の重み
-    double color_weight_;              // ぷよ色の重み
-    double turn_weight_;               // ターン数の重み
-    
-    // 行動選択パラメータ
-    int max_similar_cases_;            // 参考にする類似ケース数
-    double min_similarity_threshold_;  // 最低類似度閾値
-    double random_fallback_rate_;      // 類似ケースがない場合のランダム率
+    // 類似度計算とマッチング
+    double min_similarity_threshold_;
+    int search_depth_;
     
     // ランダム生成器
     std::random_device rd_;
     std::mt19937 gen_;
     std::uniform_real_distribution<> uniform_dist_;
     
-    // データファイル管理
-    std::string data_file_path_;
-    bool auto_save_enabled_;
+    // 性能監視
+    struct PerformanceStats {
+        int total_queries;
+        int successful_matches;
+        int exact_matches;
+        int similar_matches;
+        int fallback_uses;
+        double avg_similarity;
+        double avg_confidence;
+        
+        PerformanceStats() : total_queries(0), successful_matches(0), 
+                           exact_matches(0), similar_matches(0), fallback_uses(0),
+                           avg_similarity(0.0), avg_confidence(0.0) {}
+    } stats_;
     
-    // 統計情報
-    int total_queries_;
-    int successful_matches_;
-    double avg_similarity_;
+    // モデル管理
+    std::string model_save_path_;
+    bool online_learning_enabled_;
+    int memory_limit_;
     
 public:
     HumanLearningAI(const AIParameters& params = {}) 
-        : AIBase("HumanLearningAI"), gen_(rd_()), uniform_dist_(0.0, 1.0) {
+        : AIBase("HumanLearningAI"), gen_(rd_()), uniform_dist_(0.0, 1.0),
+          min_similarity_threshold_(0.7), search_depth_(5),
+          online_learning_enabled_(true), memory_limit_(5000) {
+        
+        // YAML設定の読み込み
+        load_configuration();
         
         // パラメータの設定
         for (const auto& param : params) {

@@ -1,0 +1,77 @@
+# HumanLearningAI設定ファイル
+# 人間行動学習による連鎖構築AI
+
+# 学習データ設定
+learning_data:
+  data_dir: "data/human_play"          # 人間プレイデータディレクトリ
+  min_games_required: 100              # 最小必要ゲーム数
+  quality_threshold: 0.7               # データ品質閾値
+  max_chain_filter: 3                  # 最大連鎖フィルター（これ以上の連鎖を含むゲームを重視）
+  
+# パターン認識設定
+pattern_recognition:
+  field_similarity_threshold: 0.8      # フィールド類似度閾値
+  action_confidence_threshold: 0.6     # 行動確信度閾値
+  pattern_clustering:
+    n_clusters: 20                     # パターンクラスタ数
+    similarity_metric: "field_structure"  # 類似度計算方式
+    
+# 類似状況検索
+situation_matching:
+  search_depth: 5                      # 検索深度
+  weight_factors:
+    field_structure: 0.4               # フィールド構造重み
+    color_distribution: 0.3            # 色分布重み
+    height_profile: 0.2                # 高さプロファイル重み
+    next_compatibility: 0.1            # ネクスト互換性重み
+    
+# 行動選択設定
+action_selection:
+  imitation_strength: 0.8              # 模倣度合い
+  randomness_factor: 0.1               # ランダム性
+  confidence_bonus: 0.1                # 確信度ボーナス
+  
+  # 行動重み付け
+  action_weights:
+    exact_match: 1.0                   # 完全一致
+    similar_match: 0.7                 # 類似一致
+    fallback: 0.3                      # フォールバック
+    
+# 連鎖構築学習
+chain_learning:
+  chain_pattern_weights:
+    setup_phase: 1.2                   # 連鎖構築段階
+    trigger_phase: 1.5                 # 連鎖発火段階
+    continuation_phase: 1.0            # 連鎖継続段階
+    
+  # 人間の癖学習
+  human_tendencies:
+    color_preferences: true            # 色選好学習
+    position_preferences: true         # 位置選好学習
+    timing_patterns: true              # タイミングパターン学習
+    
+# データ前処理
+preprocessing:
+  noise_reduction: true                # ノイズ除去
+  outlier_detection: true              # 外れ値検出
+  data_augmentation: false             # データ拡張（回転・反転）
+  
+# 学習制御
+learning_control:
+  online_learning: true                # オンライン学習有効
+  adaptation_rate: 0.05                # 適応率
+  forget_factor: 0.99                  # 忘却率
+  memory_limit: 5000                   # メモリ制限
+  
+# 性能最適化
+performance:
+  cache_size: 1000                     # キャッシュサイズ
+  batch_processing: true               # バッチ処理
+  parallel_search: false               # 並列検索（シンプル実装のためfalse）
+  
+# デバッグ設定
+debug:
+  log_matching_process: false          # マッチング過程ログ
+  save_learned_patterns: true         # 学習パターン保存
+  show_imitation_stats: true           # 模倣統計表示
+  verbose_similarity: false            # 類似度詳細表示
